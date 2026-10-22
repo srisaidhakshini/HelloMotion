@@ -2,9 +2,15 @@ const { app, BrowserWindow, session, globalShortcut, ipcMain } = require('electr
 const path = require('node:path');
 const {CameraOutput} = require('./camera-output.cjs');
 const output=new CameraOutput(path.join(app.isPackaged ? process.resourcesPath : path.join(__dirname,'..'),'native','bin','HelloMotionHost.exe'));
+if(process.argv.includes('--gesture-ui-check')){
+  app.commandLine.appendSwitch('use-fake-device-for-media-stream');
+  app.commandLine.appendSwitch('use-fake-ui-for-media-stream');
+  app.commandLine.appendSwitch('use-file-for-fake-video-capture',path.join(__dirname,'..','work','gesture-check','thumbs_up.y4m'));
+}
 let win;
-function trusted(event){return event.sender===win?.webContents && event.senderFrame===win.webContents.mainFrame;}
+function trusted(event){return Boolean(win&&!win.isDestroyed()&&!event.sender.isDestroyed()&&event.sender===win.webContents&&event.senderFrame===win.webContents.mainFrame);}
 ipcMain.handle('camera-output',async(event,action)=>{
+  if(action==='state')return output.state();
   if(!trusted(event))throw Error('Untrusted request');
   if(action==='start')return output.start();
   if(action==='stop')return output.stop();
@@ -23,6 +29,45 @@ app.whenReady().then(() => {
   win.webContents.setWindowOpenHandler(() => ({action: 'deny'}));
   win.webContents.on('will-navigate', e => e.preventDefault());
   win.loadFile(path.join(__dirname, 'index.html'));
+  if(process.argv.includes('--gesture-ui-check')){
+    win.webContents.once('did-finish-load',async()=>{
+      try{
+        await win.webContents.executeJavaScript(`(async()=>{
+          document.getElementById('start').click();
+          const until=Date.now()+20000;
+          while(document.getElementById('start').disabled&&Date.now()<until)await new Promise(r=>setTimeout(r,100));
+          if(document.getElementById('start').textContent!=='Stop camera')throw Error(document.getElementById('status').textContent);
+          document.getElementById('gestures').click();
+          while(Date.now()<until){
+            if(document.getElementById('gesture-message').textContent.includes('Thumbs up sent'))return;
+            await new Promise(r=>setTimeout(r,100));
+          }
+          throw Error('Gesture did not trigger: '+document.getElementById('gesture-message').textContent);
+        })()`);
+        console.log('PASS: simulated webcam → background recognition → hold gate → reaction trigger');app.exit(0);
+      }catch(error){console.error(error);app.exit(1);}
+    });
+  }
+  if(process.argv.includes('--gesture-check')){
+    win.webContents.once('did-finish-load',async()=>{
+      try{
+        const reports=await win.webContents.executeJavaScript(process.argv.includes('--reference-only')?"import('./gesture-check.mjs').then(m=>m.run({only:'heart_reference'}))":process.argv.includes('--peace-only')?"import('./gesture-check.mjs').then(m=>m.run({only:'victory'}))":"import('./gesture-check.mjs').then(m=>m.run())");
+        require('node:fs').writeFileSync(path.join(__dirname,'..','work','gesture-check','results.json'),JSON.stringify(reports,null,2));
+        console.log(JSON.stringify(reports.map(({debug,...rest})=>rest)));app.exit(reports.every(r=>r.pass)?0:1);
+      }catch(e){console.error(e);app.exit(1);}
+    });
+  }
+  if(process.argv.includes('--effects-preview')){
+    win.webContents.once('did-finish-load',async()=>{
+      try{
+        const results=await win.webContents.executeJavaScript("import('./effects-preview.mjs').then(m=>m.renderPreviews())");
+        const fs=require('node:fs');const dir=path.join(__dirname,'..','work','effects-preview');fs.mkdirSync(dir,{recursive:true});
+        for(const [name,data] of [['reactions',results.sheet],['motion',results.film],...results.frames.map(f=>[f.id,f.data])])fs.writeFileSync(path.join(dir,name+'.png'),Buffer.from(data.split(',')[1],'base64'));
+        fs.writeFileSync(path.join(dir,'metrics.json'),JSON.stringify(results.metrics,null,2));
+        console.log(JSON.stringify(results.metrics));app.exit(0);
+      }catch(e){console.error(e);app.exit(1);}
+    });
+  }
   if (process.argv.includes('--smoke-test') || process.argv.includes('--camera-smoke')) {
     win.webContents.once('did-finish-load', async () => {
       try {

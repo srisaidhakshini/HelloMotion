@@ -1,9 +1,14 @@
-import {reactionFor, GestureGate} from './gestures.mjs';
+import {reactionFor, GestureGate, classifyHands} from './gestures.mjs';
+import {ReactionEffects,handAnchor} from './effects.mjs';
+import {createDetector} from './detector-client.mjs';
 const $ = id => document.getElementById(id);
 const video=$('video'), canvas=$('canvas'), ctx=canvas.getContext('2d');
 const reactions=[['hearts','💗','Hearts','Heart hands'],['thumbs','👍','Thumbs up','One thumbs up'],['balloons','🎈','Balloons','Peace sign'],['rain','🌧️','Rain','Two thumbs down'],['confetti','🎉','Confetti','Two peace signs'],['fireworks','✨','Fireworks','Two thumbs up']];
-let stream, recognizer, enabled=false, starting=false, particles=[], lastInference=0, lastVideoTime=-1, modelPromise;
+let stream, recognizer, enabled=false, starting=false, lastInference=0, modelPromise;
 const gate=new GestureGate();
+let recognitionBusy=false,recognitionEpoch=0;
+const effects=new ReactionEffects();
+let lastHand=null,lastHandAt=0;
 let outputActive=false, outputBusy=false, lastOutput=0, pattern=false;
 const outgoing=document.createElement('canvas');outgoing.width=960;outgoing.height=540;
 const outctx=outgoing.getContext('2d',{willReadFrequently:true});
@@ -35,32 +40,41 @@ for (const [id,icon,label,gesture] of reactions) {
   const subtitle=document.createElement('small');subtitle.textContent=gesture;
   button.append(symbol,title,subtitle);button.onclick=()=>trigger(id);$('reactions').append(button);
 }
-function trigger(id) {
-  const now=performance.now(), icon=reactions.find(r=>r[0]===id)[1];
-  for(let i=0;i<(id==='rain'||id==='confetti'?90:26);i++) particles.push({id,icon,x:Math.random()*960,y:id==='rain'||id==='confetti'?-Math.random()*400:540+Math.random()*150,vx:(Math.random()-.5)*100,vy:id==='rain'?420:id==='confetti'?130:-100-Math.random()*130,born:now,life:4000+Math.random()*2000,size:20+Math.random()*30,color:['#e9a2ae','#d9bb62','#89baa7','#b4a6d1'][i%4]});
-  particles=particles.slice(-400);
+function trigger(id,anchor) {
+  const now=performance.now();
+  effects.trigger(id,now,anchor || (now-lastHandAt<600?lastHand:null));
+  $('placeholder').style.display='none';
   status(reactions.find(r=>r[0]===id)[2]+' · '+(stream?'Camera running locally.':'Demo preview · camera is off.'));
 }
 async function loadModel() {
-  if(!modelPromise) modelPromise=(async()=>{
-    const {GestureRecognizer,FilesetResolver}=await import('../node_modules/@mediapipe/tasks-vision/vision_bundle.mjs');
-    const vision=await FilesetResolver.forVisionTasks('../node_modules/@mediapipe/tasks-vision/wasm');
-    recognizer=await GestureRecognizer.createFromOptions(vision,{baseOptions:{modelAssetPath:'./models/gesture_recognizer.task',delegate:'CPU'},runningMode:'VIDEO',numHands:2});
-  })().catch(e=>{modelPromise=null;throw e;});
+  if(!modelPromise)modelPromise=createDetector().then(value=>{recognizer=value;}).catch(e=>{modelPromise=null;throw e;});
   return modelPromise;
+}
+function gestureFeedback(text,progress=0){
+  $('gesture-message').textContent=text;$('gesture-progress').value=progress;
+}
+function showDetection(result,name,now){
+  const count=result.landmarks?.length||0;
+  if(!count){gestureFeedback('No hands detected. Keep your full hand in view with light on it.');return;}
+  const label=reactions.find(r=>r[0]===name)?.[2];
+  const prefix=count+' '+(count===1?'hand':'hands')+' detected';
+  if(!label){gestureFeedback(prefix+(classifyHands(result).includes('Thumb_Down')?' · Show two thumbs down for rain.':' · Try a clear thumbs up or peace sign.'));return;}
+  if(gate.latched===name){gestureFeedback(prefix+' · '+label+' sent. Relax your hands to try again.',1);return;}
+  if(gate.progress>=1&&now-gate.last<gate.cooldownMs){gestureFeedback(prefix+' · '+label+' ready. Waiting for the previous reaction.',1);return;}
+  gestureFeedback(prefix+' · '+label+' — hold steady…',gate.candidate===name?gate.progress:0);
 }
 async function toggle() {
   if(starting)return;
-  if(enabled){enabled=false;gate.reset();$('gestures').textContent='Gestures off';$('gestures').setAttribute('aria-pressed','false');status('Gesture recognition paused.');return;}
-  starting=true;$('gestures').disabled=true;status('Loading local gesture recognition…');
-  try{await loadModel();enabled=true;gate.reset();$('gestures').textContent='Gestures on';$('gestures').setAttribute('aria-pressed','true');status(stream?'Gestures ready. Hold a pose for a moment.':'Gestures ready. Start your camera to use them.');}
-  catch(e){console.error(e);status('Gesture model unavailable. See README for setup. Reaction buttons still work.');}
+  if(enabled){enabled=false;recognitionEpoch++;gate.reset();$('gestures').textContent='Gestures off';$('gestures').setAttribute('aria-pressed','false');status('Gesture recognition paused.');gestureFeedback('Gestures are off. Enable them above to react with your hands.');return;}
+  starting=true;$('gestures').disabled=true;status('Loading local gesture recognition…');gestureFeedback('Preparing hand detection…');
+  try{await loadModel();enabled=true;gate.reset();$('gestures').textContent='Gestures on';$('gestures').setAttribute('aria-pressed','true');status(stream?'Gestures ready. Hold a pose for a moment.':'Gestures ready. Start your camera to use them.');gestureFeedback(stream?'Looking for hands…':'Gestures are on. Start your camera to use them.');}
+  catch(e){console.error(e);status('Gesture model unavailable. See README for setup. Reaction buttons still work.');gestureFeedback('Hand detection could not load. Please restart HelloMotion.');}
   finally{starting=false;$('gestures').disabled=false;}
 }
 $('gestures').onclick=toggle;
 window.helloMotion?.onToggle(toggle);
 document.addEventListener('keydown',e=>{if(!window.helloMotion&&e.ctrlKey&&e.shiftKey&&e.code==='KeyH'){e.preventDefault();toggle();}});
-function stop(){window.helloMotion?.output('clear').catch(console.error);stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;gate.reset();particles=[];$('placeholder').style.display='flex';$('start').textContent='Start camera';status('Camera is off. No video is being captured.');}
+function stop(){recognitionEpoch++;window.helloMotion?.output('clear').catch(console.error);stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;gate.reset();effects.clear();lastHand=null;lastHandAt=0;$('placeholder').style.display='flex';$('start').textContent='Start camera';status('Camera is off. No video is being captured.');gestureFeedback(enabled?'Gestures are on. Start your camera to use them.':'Gestures are off. Enable them above to react with your hands.');}
 async function start(){
   pattern=false;$('pattern').setAttribute('aria-pressed','false');
   $('start').disabled=true;
@@ -70,8 +84,8 @@ async function start(){
     const physicalDevices=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput'&&!d.label.includes('HelloMotion'));
     $('camera').replaceChildren(...physicalDevices.map(d=>{const o=document.createElement('option');o.value=d.deviceId;o.textContent=d.label||'Camera';return o;}));
     if(stream.getVideoTracks()[0].label.includes('HelloMotion'))throw Error('feedback');
-    video.srcObject=stream;await video.play();lastVideoTime=-1;lastInference=0;
-    $('placeholder').style.display='none';$('start').textContent='Stop camera';status('Camera running locally. No recording or uploads.');
+    video.srcObject=stream;await video.play();lastInference=0;
+    $('placeholder').style.display='none';$('start').textContent='Stop camera';status('Camera running locally. No recording or uploads.');gestureFeedback(enabled?'Looking for hands…':'Gestures are off. Enable them above to react with your hands.');
     const devices=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput'&&!d.label.includes('HelloMotion'));
     $('camera').replaceChildren(...devices.map(d=>{const o=document.createElement('option');o.value=d.deviceId;o.textContent=d.label||'Camera';return o;}));
     $('camera').value=stream.getVideoTracks()[0].getSettings().deviceId;
@@ -81,10 +95,9 @@ async function start(){
 }
 $('start').onclick=()=>stream?stop():start();
 $('camera').onchange=async()=>{if(stream){stop();await start();}};
-window.addEventListener('beforeunload',stop);
-let previous=performance.now();
+window.addEventListener('beforeunload',()=>{enabled=false;recognitionEpoch++;stream?.getTracks().forEach(t=>t.stop());effects.clear();recognizer?.close();});
 function frame(now){
-  const dt=Math.min((now-previous)/1000,.05);previous=now;ctx.clearRect(0,0,960,540);
+  ctx.clearRect(0,0,960,540);
   if(pattern){
     ctx.fillStyle='#263d33';ctx.fillRect(0,0,960,540);
     ['#e8b2c2','#dcca87','#8dbb9f','#a9bce1','#b6a6d2'].forEach((color,i)=>{ctx.fillStyle=color;ctx.fillRect(i*192,0,192,320);});
@@ -95,18 +108,25 @@ function frame(now){
   if(stream&&video.readyState>=2){
     const scale=Math.max(960/video.videoWidth,540/video.videoHeight),w=video.videoWidth*scale,h=video.videoHeight*scale;
     ctx.save();ctx.translate(960,0);ctx.scale(-1,1);ctx.drawImage(video,(960-w)/2,(540-h)/2,w,h);ctx.restore();
-    if(enabled&&recognizer&&now-lastInference>100&&lastVideoTime!==video.currentTime){
-      lastInference=now;lastVideoTime=video.currentTime;
-      try{const reaction=gate.update(reactionFor(recognizer.recognizeForVideo(video,now)),now);if(reaction)trigger(reaction);}
-      catch(e){enabled=false;$('gestures').textContent='Gestures off';$('gestures').setAttribute('aria-pressed','false');status('Gesture recognition stopped after an error. You can retry.');console.error(e);}
+    if(enabled&&recognizer&&!recognitionBusy&&now-lastInference>100){
+      lastInference=now;recognitionBusy=true;const epoch=recognitionEpoch;
+      const frameWidth=video.videoWidth,frameHeight=video.videoHeight;
+      recognizer.recognize(video,now).then(result=>{
+        if(!enabled||!stream||epoch!==recognitionEpoch)return;
+        const received=performance.now(),anchor=handAnchor(result,frameWidth,frameHeight);
+        if(anchor){lastHand=anchor;lastHandAt=received;}
+        const name=reactionFor(result),reaction=gate.update(name,received);
+        if(reaction)trigger(reaction,anchor);showDetection(result,name,received);
+      }).catch(error=>{
+        if(epoch!==recognitionEpoch||!enabled)return;
+        enabled=false;recognizer?.close();recognizer=null;modelPromise=null;gate.reset();
+        $('gestures').textContent='Gestures off';$('gestures').setAttribute('aria-pressed','false');
+        status('Hand detection stopped. Enable gestures to retry.');gestureFeedback(error.message||String(error));console.error(error);
+      }).finally(()=>{recognitionBusy=false;});
     }
   }
-  particles=particles.filter(p=>now-p.born<p.life);
-  for(const p of particles){p.x+=p.vx*dt;p.y+=p.vy*dt;ctx.globalAlpha=Math.min(1,(p.life-(now-p.born))/700);ctx.fillStyle=p.color;
-    if(p.id==='confetti'){ctx.save();ctx.translate(p.x,p.y);ctx.rotate(now/400+p.x);ctx.fillRect(-4,-7,8,14);ctx.restore();}
-    else if(p.id==='rain'){ctx.strokeStyle='#abc8e5';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x-5,p.y+20);ctx.stroke();}
-    else{ctx.font=p.size+'px Segoe UI Emoji';ctx.fillText(p.icon,p.x,p.y);}
-  }ctx.globalAlpha=1;
+  effects.render(ctx,now);
+  if(!stream&&!pattern&&!effects.playing)$('placeholder').style.display='flex';
   if(outputActive&&!outputBusy&&now-lastOutput>1000/24){
     lastOutput=now;outputBusy=true;
     outctx.setTransform(1,0,0,1,0,0);outctx.clearRect(0,0,960,540);
