@@ -1,0 +1,57 @@
+{
+  "name": "hellomotion",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Local-first gesture reactions for Windows video calls",
+  "license": "MIT",
+  "main": "app/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/gestures.test.mjs test/frame-server.test.cjs",
+    "dist": "electron-builder --win nsis",
+    "camera:build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-camera.ps1",
+    "smoke": "electron . --smoke-test",
+    "camera:test": "node scripts/test-camera.cjs",
+    "camera:smoke": "electron . --camera-smoke",
+    "setup": "node scripts/setup-assets.cjs"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "0.10.32"
+  },
+  "devDependencies": {
+    "electron": "42.0.0",
+    "electron-builder": "26.0.12"
+  },
+  "build": {
+    "appId": "org.hellomotion.desktop",
+    "productName": "HelloMotion",
+    "files": [
+      "app/**/*",
+      "node_modules/@mediapipe/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": true,
+      "include": "scripts/installer.nsh"
+    },
+    "extraResources": [
+      {
+        "from": "native/bin",
+        "to": "native/bin",
+        "filter": [
+          "HelloMotionHost.exe",
+          "HelloMotionCamera.dll"
+        ]
+      },
+      {
+        "from": "native/notices",
+        "to": "notices"
+      }
+    ]
+  }
+}
