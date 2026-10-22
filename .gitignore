@@ -5,3 +5,5 @@ app/models/*.task
 native/bin/
 native/obj/
 native/deps/
+
+work/

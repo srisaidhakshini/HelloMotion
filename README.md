@@ -1,6 +1,8 @@
 # HelloMotion
 
-Free, open-source gesture reactions for Windows 11 x64. Development preview **0.2.0**.
+Free, open-source gesture reactions for Windows 11 x64. Development preview **0.3.1**.
+
+![HelloMotion reaction effects: hearts, thumbs-up, balloons, confetti, rain, fireworks](docs/images/reactions.png)
 
 ## Run on this laptop
 
@@ -20,7 +22,15 @@ Only the preview is mirrored; outgoing webcam video is normally oriented. Closin
 
 ## Features and verification
 
-Six reactions: hearts, thumbs up, balloons, rain, confetti, fireworks. Local MediaPipe recognition with an 800 ms hold, 3 second cooldown, and release before retrigger. Heart hands uses an experimental heuristic. Native camera: RGB32/NV12, 960x540.
+Six custom procedural animations: glossy red hearts emitted from the detected hand position; golden thumbs-up glass bubbles; shaded balloons with swaying strings; ballistic confetti; cloud/rain/lightning scene; and fireworks with rocket trails and spark bursts. No emoji glyphs are used in the video effects. Reaction buttons retain emoji labels. Local MediaPipe recognition with an 800 ms hold, 3 second cooldown, and release before retrigger. Heart hands uses an experimental heuristic. Native camera: RGB32/NV12, 960x540.
+
+| Hearts | Thumbs up | Balloons |
+| :---: | :---: | :---: |
+| ![Hearts](docs/images/hearts.png) | ![Thumbs up](docs/images/thumbs.png) | ![Balloons](docs/images/balloons.png) |
+
+| Confetti | Rain | Fireworks |
+| :---: | :---: | :---: |
+| ![Confetti](docs/images/confetti.png) | ![Rain](docs/images/rain.png) | ![Fireworks](docs/images/fireworks.png) |
 
 Verified: gesture logic; frame protocol/color conversion/stale-frame clearing; desktop/model initialization; test-pattern rendering; native compilation; Windows capture of expected pixels; full Electron canvas to Windows virtual camera path.
 
@@ -67,3 +77,16 @@ Media-source foundation: Microsoft's MIT-licensed Windows-Camera sample, commit 
 - https://github.com/microsoft/Windows-Camera/tree/master/Samples/VirtualCamera
 - https://learn.microsoft.com/en-us/windows/win32/api/mfvirtualcamera/nf-mfvirtualcamera-mfcreatevirtualcamera
 - https://developers.google.com/edge/mediapipe/solutions/vision/gesture_recognizer/web_js
+
+
+## Gesture reliability update (0.3.1)
+
+- Hand recognition runs in a background worker, with one frame in flight, so inference cannot block the preview/effect drawing loop.
+- Fresh frame snapshots, adaptive left/right scans, and a mirrored retry for ambiguous hand orientations improve reacquisition.
+- A 55% classifier cutoff replaces the overly strict 75% cutoff; the 800 ms hold and 3 second cooldown remain.
+- Brief missing/incorrect predictions preserve hold progress. A real neutral release is required before repeating a held pose.
+- The preview now shows the hand count, recognized reaction, and hold progress. Heart hands uses improved landmark geometry but remains experimental.
+
+`npm run gestures:check` downloads Google's four sample photos into ignored work/ if missing, and tests them through the same background detector used by the camera. Eight checks pass: thumbs up, peace, single thumbs down (no reaction), double thumbs up, double peace, double thumbs down, pointing up (no reaction), and blank input. The two-hand fixtures are constructed by placing the sample and a mirrored copy side by side. These checks do not establish accuracy across all lighting, hand poses, or webcams.
+
+A simulated-webcam test also verified the actual camera-start → enable gestures → hold → reaction-trigger flow, without using a physical webcam. Physical-camera validation with the user is still needed. No camera frames are saved or uploaded.

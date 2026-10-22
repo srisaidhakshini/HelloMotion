@@ -1,19 +1,21 @@
 {
   "name": "hellomotion",
-  "version": "0.2.0",
+  "version": "0.3.1",
   "private": true,
   "description": "Local-first gesture reactions for Windows video calls",
   "license": "MIT",
   "main": "app/main.cjs",
   "scripts": {
     "start": "electron .",
-    "test": "node --test test/gestures.test.mjs test/frame-server.test.cjs",
+    "test": "node --test test/gestures.test.mjs test/frame-server.test.cjs test/effects.test.mjs",
     "dist": "electron-builder --win nsis",
     "camera:build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-camera.ps1",
     "smoke": "electron . --smoke-test",
     "camera:test": "node scripts/test-camera.cjs",
     "camera:smoke": "electron . --camera-smoke",
-    "setup": "node scripts/setup-assets.cjs"
+    "setup": "node scripts/setup-assets.cjs",
+    "effects:preview": "electron . --effects-preview",
+    "gestures:check": "node scripts/check-gestures.cjs"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "0.10.32"
