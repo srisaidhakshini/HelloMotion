@@ -1,109 +1,122 @@
 # HelloMotion
 
-Free, open-source gesture reactions for Windows 11 x64. Development preview **0.4.0**.
+Free, open-source gesture reactions for Windows 11 x64 video calls. **Development preview 0.5.0.**
 
-![HelloMotion reaction effects: hearts, thumbs-up, balloons, confetti, rain, fireworks](docs/images/reactions.png)
+HelloMotion adds fourteen animated effects to your webcam, including eight 3D effects rendered locally with Three.js. Choose **HelloMotion (Windows Virtual Camera)** in Google Meet or WhatsApp Desktop to send the combined video.
 
-## Run on this laptop
+![Galaxy portal, jellyfish ballet, snow globe, and golden phoenix](docs/images/creative-effects.png)
 
-```
+## Start using HelloMotion
+
+If you have a built installer, close HelloMotion before installing or updating it. The unsigned installer includes the gesture model and native camera component, and requires administrator access to register the camera. This repository does not yet provide a tested public release.
+
+1. Open HelloMotion and click **Start camera**. Select your physical webcam in HelloMotion.
+2. Turn **Call output** on.
+3. Choose **HelloMotion (Windows Virtual Camera)** as the camera in your calling app.
+4. Turn **Gestures** on, or click an effect button. Scroll the effect picker to see all fourteen.
+5. Hold a static gesture for about 800 ms. Relax your hands before repeating; reactions share a three-second cooldown.
+
+**Ctrl + Shift + H** toggles gesture recognition. **Test pattern** lets you check output without opening a webcam. The preview is mirrored; outgoing webcam video is normally oriented. Keep HelloMotion running during your call; minimizing it keeps frame production active. Stopping the camera clears outgoing video, and closing HelloMotion removes its session camera.
+
+## Effects and gestures
+
+| Effect | Gesture | Animation |
+| --- | --- | --- |
+| Hearts | Heart hands | Glossy red hearts rise from the hands. Heart recognition remains experimental. |
+| Thumbs up | One thumbs up | Golden thumbs-up bubbles rise and shimmer. |
+| Balloons | One peace sign | Shaded balloons float upward with swaying strings. |
+| Rain | Two thumbs down | Clouds, rain, and lightning. |
+| Confetti | Two peace signs | A burst of tumbling confetti. |
+| Fireworks | Two thumbs up | Rockets burst into sparks and trails. |
+| Flower bloom | Closed fist, then open that palm | A stem grows and layered 3D petals unfold and drift away. |
+| Butterflies | Two open palms | Seven butterflies flap their hinged wings and fly outward. |
+| Magic sparkles | Index finger pointing upward | A glowing star and flowing trail follow the fingertip. |
+| Silk ribbons | Wave one open palm side to side twice | Twisting 3D satin ribbons flow across the frame. |
+| Galaxy portal | Two closed fists | Metal rings, orbiting crystals, and a swirling luminous centre. |
+| Jellyfish ballet | Open palm + peace sign | Three glowing jellyfish pulse and drift with flowing tentacles. |
+| Snow globe | Open palm + thumbs up | Falling snow, trees, and a house inside a glass globe. |
+| Golden phoenix | Thumb, index, and pinky extended; middle and ring fingers folded | A golden bird rises with feathered wings, trailing plumes, and embers. |
+
+All effects have manual buttons. The video effects use custom artwork and geometry; emoji are used only as button labels.
+
+![Flower bloom, butterflies, magic sparkles, and silk ribbons](docs/images/new-effects.png)
+
+## Run the existing development checkout
+
+On this laptop, the project is in `D:\Project\video-effects`:
+
+```powershell
 cd D:\Project\video-effects
 npm start
 ```
 
-The dependencies, local model, native camera binaries, and development camera registration are prepared on this laptop.
+Close the previous instance before starting another. Dependencies, the local model, native binaries, and development camera registration have already been prepared on this laptop.
 
-1. Start your camera, or use **Test pattern** without a webcam.
-2. Enable **Call output**.
-3. Select **HelloMotion (Windows Virtual Camera)** in your calling app.
-4. Enable **Gestures**, or click a reaction button. Ctrl+Shift+H toggles gestures.
+## Set up a fresh checkout
 
-Only the preview is mirrored; outgoing webcam video is normally oriented. Closing HelloMotion removes its session camera. Stopping the webcam clears outgoing video.
+Requirements: Windows 11 x64, Node.js (tested with version 24), and Visual Studio 2022 Build Tools with Desktop development with C++ and the Windows 11 SDK. An 8 GB laptop is the target; performance across different laptops is still being evaluated.
 
-## Features and verification
-
-Ten effects, including four locally rendered Three.js 3D animations. The original six custom procedural animations: glossy red hearts emitted from the detected hand position; golden thumbs-up glass bubbles; shaded balloons with swaying strings; ballistic confetti; cloud/rain/lightning scene; and fireworks with rocket trails and spark bursts. No emoji glyphs are used in the video effects. Reaction buttons retain emoji labels. Local MediaPipe recognition with an 800 ms hold, 3 second cooldown, and release before retrigger. Heart hands uses an experimental heuristic. Native camera: RGB32/NV12, 960x540.
-
-| Hearts | Thumbs up | Balloons |
-| :---: | :---: | :---: |
-| ![Hearts](docs/images/hearts.png) | ![Thumbs up](docs/images/thumbs.png) | ![Balloons](docs/images/balloons.png) |
-
-| Confetti | Rain | Fireworks |
-| :---: | :---: | :---: |
-| ![Confetti](docs/images/confetti.png) | ![Rain](docs/images/rain.png) | ![Fireworks](docs/images/fireworks.png) |
-
-Verified: gesture logic; frame protocol/color conversion/stale-frame clearing; desktop/model initialization; test-pattern rendering; native compilation; Windows capture of expected pixels; full Electron canvas to Windows virtual camera path.
-
-Not yet verified: WhatsApp Desktop and Google Meet in real calls, physical-camera gesture accuracy, performance on 8 GB machines, and clean-machine installer/uninstaller behavior. This is not a production release.
-
-## Fresh development checkout
-
-Prerequisites: Node.js LTS and Visual Studio 2022 Build Tools with Desktop development with C++ and Windows 11 SDK.
-
-```
+```powershell
+git clone https://github.com/srisaidhakshini/video-effects.git
+cd video-effects
 npm ci
 npm run setup
 npm run camera:build
 ```
 
-Register the source once in an administrator PowerShell from the repository root:
+From an **administrator PowerShell** in the repository, register the native camera source once:
 
-```
+```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup-camera.ps1
 ```
 
-Then launch normally with `npm start`. See `native/README.md` for architecture and removal instructions.
+Then launch normally with `npm start`. Development registration points to this checkout, so keep it in place. See [native/README.md](native/README.md) for the camera architecture and removal instructions.
+
+## Smooth rendering and camera output
+
+- Gesture recognition runs in a background worker, with one frame in flight. Brief uncertain predictions preserve hold progress; a neutral release is required before repeating a pose.
+- All eight 3D effects render in a separate OffscreenCanvas worker. Geometry setup and shader compilation do not block the camera's drawing loop. Effect scenes are cached, with at most eight cached scenes and three active effects.
+- A single background timer targets 24 fps for camera production, including while minimized. Only one output IPC frame is in flight; missed work is dropped instead of queued.
+- The native source advertises 960 x 540 RGB32/NV12 at 30 fps. A pipe-reading worker updates a latest-frame cache; sample requests copy completed frames without waiting for pipe I/O. Native delivery is paced, with QPC-based timestamps.
+- Brief interruptions repeat the most recent frame. The server and native reader each expire their cache after 1.5 seconds without a fresh update. Explicit camera stop clears the server buffer immediately; the next completed native poll receives black.
+
+After an update, close and reopen HelloMotion and reselect its camera in the calling app. Windows may require a camera-service refresh or restart to release an older loaded camera DLL.
 
 ## Checks and packaging
 
-```
-npm test
-npm run smoke
-npm run camera:test
-npm run camera:smoke
-npm run dist
-```
+| Command | Checks or output |
+| --- | --- |
+| `npm test` | Gesture mappings, motion sequences, hold/release/cooldown, anchors, and frame transport. |
+| `npm run smoke` | Desktop controls, local model initialization, and test-pattern start/stop. |
+| `npm run gestures:check` | Eight checks using Google's sample photos and constructed two-hand fixtures. Downloads fixtures into ignored `work/` if needed. |
+| `npm run effects:check` | All fourteen effects: visible rendering, expiry, cleanup, and bounded scene caching. |
+| `npm run effects:worker-check` | Images and clearing for all eight worker-rendered 3D effects. |
+| `npm run camera:reader-test` | Native cache behavior during connection gaps, explicit clearing, stale-frame expiry, and recovery. |
+| `npm run camera:test` | Native Windows capture of expected test pixels. |
+| `npm run camera:smoke` | Electron canvas through IPC, pipe, and Windows virtual-camera capture. |
+| `npm run camera:stability -- --with-effects` | Six seconds of minimized virtual-camera capture with creative effects, checking motion, black frames, timestamps, and delivery rate. |
+| `npx electron . --producer-stability` | Eight seconds of minimized frame production with creative effects in an isolated buffer; does not activate a second Windows virtual camera. |
+| `npm run effects:preview` | Still images and motion contact sheets under `work/effects-preview/`. |
+| `npm run effects:demo` | A generated-background video of the latest four effects, without capturing a webcam. |
+| `npm run dist` | Unsigned Windows installer under `dist/`; build the native camera first. |
 
-The unsigned installer bundles the model and native binaries and requires administrator access to register the camera source. Build the native camera before packaging. Installation and removal require clean-machine testing before public distribution.
+Close other HelloMotion instances before tests that activate the Windows virtual camera. Camera tests open only HelloMotion's virtual device; they do not open a physical webcam.
 
-## Privacy and release work
+**Verified locally:** 19 automated tests; all eight worker-rendered effects; packaged desktop/model initialization; and minimized frame production with the latest four effects, with zero black frames. The 0.4.1 native output path also passed Windows capture and minimized stability checks. For 0.5.0, an isolated producer test preserved the existing call instead of replacing its virtual camera.
 
-No account, analytics, microphone capture, recordings, video uploads, or network listener. Development setup downloads dependencies/model; runtime assets are local. Frames travel over an unpredictable local Windows named pipe. Explicit pipe access controls and security review remain release tasks. The initial bridge also needs CPU and latency measurements.
+**Still needs validation:** live-camera accuracy of the new gestures, real calls in Meet and WhatsApp across machines, sustained performance on 8 GB laptops, and clean-machine installation, updates, and removal. Sample-photo and generated-pattern tests do not establish real-world gesture accuracy or calling-app compatibility. This is a development preview.
 
-## Credits
+## Privacy
 
-Media-source foundation: Microsoft's MIT-licensed Windows-Camera sample, commit 626f8b19c5f367602f2e89c6b314573d3776c9df; notices retained under native/. Gesture recognition: Google MediaPipe Tasks Vision.
+Camera frames and recognition stay on the device. HelloMotion has no account requirement, analytics, microphone capture, webcam recording, video uploads, or network listener. Setup downloads dependencies and the gesture model; runtime assets are local. The optional demo command records only a generated background and effects.
 
-- https://github.com/microsoft/Windows-Camera/tree/master/Samples/VirtualCamera
-- https://learn.microsoft.com/en-us/windows/win32/api/mfvirtualcamera/nf-mfvirtualcamera-mfcreatevirtualcamera
-- https://developers.google.com/edge/mediapipe/solutions/vision/gesture_recognizer/web_js
+Frames travel through an unpredictable local Windows named pipe and remain in memory. Explicit pipe access controls, security review, and broader CPU/latency measurements remain release work. Build output, downloaded models, dependencies, test fixtures, and generated demos are excluded from Git.
 
+## License and credits
 
-## Gesture reliability update (0.3.1)
+HelloMotion is [MIT licensed](LICENSE).
 
-- Hand recognition runs in a background worker, with one frame in flight, so inference cannot block the preview/effect drawing loop.
-- Fresh frame snapshots, adaptive left/right scans, and a mirrored retry for ambiguous hand orientations improve reacquisition.
-- A 55% classifier cutoff replaces the overly strict 75% cutoff; the 800 ms hold and 3 second cooldown remain.
-- Brief missing/incorrect predictions preserve hold progress. A real neutral release is required before repeating a held pose.
-- The preview now shows the hand count, recognized reaction, and hold progress. Heart hands uses improved landmark geometry but remains experimental.
-
-`npm run gestures:check` downloads Google's four sample photos into ignored work/ if missing, and tests them through the same background detector used by the camera. Eight checks pass: thumbs up, peace, single thumbs down (no reaction), double thumbs up, double peace, double thumbs down, pointing up (magic sparkles), and blank input. The two-hand fixtures are constructed by placing the sample and a mirrored copy side by side. These checks do not establish accuracy across all lighting, hand poses, or webcams.
-
-A simulated-webcam test also verified the actual camera-start → enable gestures → hold → reaction-trigger flow, without using a physical webcam. Physical-camera validation with the user is still needed. No camera frames are saved or uploaded.
-
-## New 3D effects (0.4.0)
-
-![Flower bloom, butterflies, magic sparkles, and silk ribbons](docs/images/new-effects.png)
-
-| Effect | Gesture | Animation |
-| --- | --- | --- |
-| Flower bloom | Hold a closed fist briefly, then open that palm | A stem grows from the palm; layered petals unfold and drift away. |
-| Butterflies | Hold two open palms | Seven butterflies with hinged wings fly outward in depth. |
-| Magic sparkles | Hold one index finger pointing upward | A glowing star and a fading trail follow the fingertip. |
-| Silk ribbons | Wave one open palm side to side twice | Lit, twisting satin ribbons flow across the frame. |
-
-All four also have manual buttons. Flower and wave gestures use movement sequences; butterflies and sparkles use the existing hold timer. All share the existing cooldown. Flower is anchored to the palm at trigger time; sparkles continue tracking while pointing. Three.js renders real meshes with lighting, reflection, depth, and transparent compositing into the same virtual-camera output. Models, textures, and geometry are generated locally; no runtime downloads are needed.
-
-`npm run effects:preview` creates stills and motion contact sheets under ignored `work/effects-preview/`. `npm run effects:demo` records a generated-background animation demo there, without using the webcam. `npm run effects:check` checks rendering, expiry, and cleanup without saving a preview. Gesture sequence tests cover intentional movements and false-trigger controls; live webcam tuning and performance checks on other machines remain necessary.
-
-Three.js is MIT licensed; its license is bundled with the app under notices/Three.txt.
+- Native media-source foundation: Microsoft's [Windows-Camera sample](https://github.com/microsoft/Windows-Camera/tree/master/Samples/VirtualCamera), commit `626f8b19c5f367602f2e89c6b314573d3776c9df`. Original copyright and MIT notices are retained under `native/` and bundled with the installer.
+- Gesture recognition: [Google MediaPipe Tasks Vision](https://developers.google.com/edge/mediapipe/solutions/vision/gesture_recognizer/web_js).
+- 3D rendering: [Three.js](https://threejs.org/), with its MIT license bundled under `notices/Three.txt`.
+- Windows camera API: [MFCreateVirtualCamera](https://learn.microsoft.com/en-us/windows/win32/api/mfvirtualcamera/nf-mfvirtualcamera-mfcreatevirtualcamera).
