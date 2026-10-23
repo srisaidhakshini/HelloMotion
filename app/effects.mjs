@@ -1,3 +1,4 @@
+import {SpatialEffects,SPATIAL_IDS,initializeSpatial} from './spatial-effects.mjs';
 // Procedural reaction artwork. No emoji glyphs, image downloads, or per-frame assets.
 const W=960,H=540,TAU=Math.PI*2;
 const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
@@ -49,14 +50,24 @@ export function handAnchor(result,videoWidth=960,videoHeight=540){
   return {x:clamp(W-((W-dw)/2+x*dw),70,W-70),y:clamp((H-dh)/2+y*dh,70,H-60)};
 }
 
+export function pointAnchor(result,indices=[8],hand=0,videoWidth=960,videoHeight=540){
+  const points=indices.map(i=>result.landmarks?.[hand]?.[i]).filter(Boolean);if(!points.length)return null;
+  const x=points.reduce((sum,p)=>sum+p.x,0)/points.length,y=points.reduce((sum,p)=>sum+p.y,0)/points.length;
+  const scale=Math.max(W/videoWidth,H/videoHeight),dw=videoWidth*scale,dh=videoHeight*scale;
+  return {x:clamp(W-((W-dw)/2+x*dw),18,W-18),y:clamp((H-dh)/2+y*dh,18,H-18)};
+}
+
 export class ReactionEffects {
-  constructor(){this.active=[];this.heart=makeHeart();this.thumb=makeThumb();this.balloonSprites=palettes.map(makeBalloon);this.glows=palettes.map(makeGlow);}
-  clear(){this.active=[];}
+  constructor(){this.depth=null;this.active=[];this.heart=makeHeart();this.thumb=makeThumb();this.balloonSprites=palettes.map(makeBalloon);this.glows=palettes.map(makeGlow);}
+  clear(){this.active=[];this.depth?.clear();}
+  dispose(){this.clear();this.depth?.dispose();this.depth=null;}
+  follow(id,point,now){const effect=this.active.find(e=>e.id===id);if(effect&&point){effect.tracking=true;effect.target={...point};effect.followUntil=now+1400;}}
   get playing(){return this.active.length>0;}
   trigger(id,now,anchor={x:W*.5,y:H*.62},seed=Math.floor(Math.random()*1e9)){
     const random=rng(seed),r=(a,b)=>a+(b-a)*random();
     const effect={id,born:now,anchor:anchor||{x:W*.5,y:H*.62},life:6,particles:[]};
-    if(id==='hearts'){
+    if(SPATIAL_IDS.has(id)){this.depth ||= new SpatialEffects();initializeSpatial(effect,random);}
+    else if(id==='hearts'){
       effect.life=5.2;
       for(let i=0;i<12;i++)effect.particles.push({delay:i*.14,x:r(-65,65),vx:r(-85,85),speed:r(60,100),size:i%5===0?r(94,120):r(42,86),phase:r(0,TAU),yaw:r(-1,1),life:r(2.6,3.4)});
     }else if(id==='thumbs'){
@@ -82,8 +93,9 @@ export class ReactionEffects {
     this.active=this.active.filter(e=>e.id!==id).slice(-2);this.active.push(effect);
   }
   render(c,now){
-    this.active=this.active.filter(e=>now-e.born<e.life*1000);
-    for(const e of this.active){const t=Math.max(0,(now-e.born)/1000);c.save();this[e.id](c,e,t);c.restore();}
+    this.active=this.active.filter(e=>e.tracking?now<e.followUntil:now-e.born<e.life*1000);
+    for(const e of this.active.filter(e=>!SPATIAL_IDS.has(e.id))){const t=Math.max(0,(now-e.born)/1000);c.save();this[e.id](c,e,t);c.restore();}
+    this.depth?.render(c,this.active.filter(e=>SPATIAL_IDS.has(e.id)),now);
   }
   hearts(c,e,t){
     for(const p of e.particles){const a=t-p.delay;if(a<0||a>p.life)continue;
