@@ -1,5 +1,9 @@
 # HelloMotion
 
+<p align="center">
+  <img src="app/assets/hellomotion-icon.png" width="160" alt="HelloMotion butterfly ribbon emblem">
+</p>
+
 ### Your hands. Your camera. A little magic.
 
 HelloMotion is a free, open-source Windows app that turns hand gestures into animated reactions during video calls. Make a heart with your hands, open a glowing portal, send jellyfish drifting through the frame, or let a golden phoenix take flight. You can trigger every effect with a button, too.
@@ -20,7 +24,7 @@ Hand recognition and rendering run on your computer. The project is inspired by 
    +-------------------------------------------------------------+
 ```
 
-**Windows 11 x64** / **14 effects** / **8 in 3D** / **MIT licensed** / **Preview 0.5.0**
+**Windows 11 x64** / **14 effects** / **8 in 3D** / **MIT licensed** / **Preview 0.5.1**
 
 [Get started](#start-using-hellomotion) · [Gesture guide](#effects-and-gestures) · [Build it](#set-up-a-fresh-checkout) · [How it works](#from-a-gesture-to-the-other-side-of-the-call) · [All effect images](#the-effect-gallery)
 
@@ -156,6 +160,10 @@ Close other HelloMotion instances before tests that activate the Windows virtual
 Camera frames and recognition stay on the device. HelloMotion has no account requirement, analytics, microphone capture, webcam recording, video uploads, or network listener. Setup downloads dependencies and the gesture model; runtime assets are local. The optional demo command records only a generated background and effects.
 
 Frames travel through an unpredictable local Windows named pipe and remain in memory. Explicit pipe access controls, security review, and broader CPU/latency measurements remain release work. Build output, downloaded models, dependencies, test fixtures, and generated demos are excluded from Git.
+
+## Brand assets
+
+The coral, violet, and mint butterfly-ribbon logo represents movement and transformation. The full logo, transparent symbol, and multi-resolution Windows icon live in [`app/assets/`](app/assets/). The symbol appears in the app header and camera placeholder, window/taskbar icon, installer, uninstaller, and installed shortcuts. See [the brand notes](docs/branding.md) for asset usage and design provenance.
 
 ## License and credits
 

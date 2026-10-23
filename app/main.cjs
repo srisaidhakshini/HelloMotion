@@ -22,10 +22,11 @@ ipcMain.handle('camera-frame',(event,rgba)=>{
   return output.publish(rgba);
 });
 app.whenReady().then(() => {
+  app.setAppUserModelId('org.hellomotion.desktop');
   session.defaultSession.setPermissionRequestHandler((contents, permission, callback, details) => {
     callback(contents === win?.webContents && permission === 'media' && !details.mediaTypes?.includes('audio'));
   });
-  win = new BrowserWindow({ width: 1180, height: 800, minWidth: 900, minHeight: 700, backgroundColor: '#f7f6f3', title: 'HelloMotion', webPreferences: { backgroundThrottling: false, preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true } });
+  win = new BrowserWindow({ width: 1180, height: 800, minWidth: 900, minHeight: 700, backgroundColor: '#f7f6f3', title: 'HelloMotion', icon: path.join(__dirname,'assets','hellomotion-icon.ico'), webPreferences: { backgroundThrottling: false, preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true } });
   win.webContents.setWindowOpenHandler(() => ({action: 'deny'}));
   win.webContents.on('will-navigate', e => e.preventDefault());
   win.loadFile(path.join(__dirname, 'index.html'));
@@ -94,6 +95,15 @@ app.whenReady().then(() => {
         await new Promise((resolve,reject)=>require('node:child_process').execFile(path.join(__dirname,'..','native','bin','HelloMotionProbe.exe'),['--pattern','--stability'],{windowsHide:true,timeout:30000},(err,stdout,stderr)=>{console.log(stdout);err?reject(Error(stderr||err.message)):resolve();}));
         await output.stop();console.log('PASS: minimized HelloMotion maintains moving virtual-camera output');app.exit(0);
       }catch(error){console.error(error);await output.stop();app.exit(1);}
+    });
+  }
+  if(process.argv.includes('--branding-preview')){
+    win.webContents.once('did-finish-load',async()=>{
+      try{
+        await win.webContents.executeJavaScript("Promise.all(Array.from(document.querySelectorAll('.logo,.placeholder-logo'),image=>image.decode()))");
+        await new Promise(r=>setTimeout(r,300));const fs=require('node:fs'),dir=path.join(__dirname,'..','work','branding');fs.mkdirSync(dir,{recursive:true});
+        fs.writeFileSync(path.join(dir,'app-preview.png'),(await win.webContents.capturePage()).toPNG());console.log('Brand preview saved.');app.exit(0);
+      }catch(error){console.error(error);app.exit(1);}
     });
   }
   if(process.argv.includes('--effects-demo')){
