@@ -1,4 +1,5 @@
 import {SpatialEffects,SPATIAL_IDS,initializeSpatial} from './spatial-effects.mjs';
+import {SpatialEffectsClient} from './spatial-client.mjs';
 // Procedural reaction artwork. No emoji glyphs, image downloads, or per-frame assets.
 const W=960,H=540,TAU=Math.PI*2;
 const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
@@ -58,7 +59,7 @@ export function pointAnchor(result,indices=[8],hand=0,videoWidth=960,videoHeight
 }
 
 export class ReactionEffects {
-  constructor(){this.depth=null;this.active=[];this.heart=makeHeart();this.thumb=makeThumb();this.balloonSprites=palettes.map(makeBalloon);this.glows=palettes.map(makeGlow);}
+  constructor({background3D=false}={}){this.background3D=background3D;this.depth=null;this.active=[];this.heart=makeHeart();this.thumb=makeThumb();this.balloonSprites=palettes.map(makeBalloon);this.glows=palettes.map(makeGlow);}
   clear(){this.active=[];this.depth?.clear();}
   dispose(){this.clear();this.depth?.dispose();this.depth=null;}
   follow(id,point,now){const effect=this.active.find(e=>e.id===id);if(effect&&point){effect.tracking=true;effect.target={...point};effect.followUntil=now+1400;}}
@@ -66,7 +67,7 @@ export class ReactionEffects {
   trigger(id,now,anchor={x:W*.5,y:H*.62},seed=Math.floor(Math.random()*1e9)){
     const random=rng(seed),r=(a,b)=>a+(b-a)*random();
     const effect={id,born:now,anchor:anchor||{x:W*.5,y:H*.62},life:6,particles:[]};
-    if(SPATIAL_IDS.has(id)){this.depth ||= new SpatialEffects();initializeSpatial(effect,random);}
+    if(SPATIAL_IDS.has(id)){this.depth ||= this.background3D?new SpatialEffectsClient():new SpatialEffects();initializeSpatial(effect,random);}
     else if(id==='hearts'){
       effect.life=5.2;
       for(let i=0;i<12;i++)effect.particles.push({delay:i*.14,x:r(-65,65),vx:r(-85,85),speed:r(60,100),size:i%5===0?r(94,120):r(42,86),phase:r(0,TAU),yaw:r(-1,1),life:r(2.6,3.4)});

@@ -11,9 +11,9 @@ let stream, recognizer, enabled=false, starting=false, lastInference=0, modelPro
 const gate=new GestureGate();
 const motions=new MotionGestures();
 let recognitionBusy=false,recognitionEpoch=0;
-const effects=new ReactionEffects();
+const effects=new ReactionEffects({background3D:true});
 let lastHand=null,lastHandAt=0;
-let outputActive=false, outputBusy=false, lastOutput=0, pattern=false;
+let outputActive=false, outputBusy=false, pattern=false;
 const outgoing=document.createElement('canvas');outgoing.width=960;outgoing.height=540;
 const outctx=outgoing.getContext('2d',{willReadFrequently:true});
 async function refreshOutput(){
@@ -113,7 +113,7 @@ function frame(now){
   if(stream&&video.readyState>=2){
     const scale=Math.max(960/video.videoWidth,540/video.videoHeight),w=video.videoWidth*scale,h=video.videoHeight*scale;
     ctx.save();ctx.translate(960,0);ctx.scale(-1,1);ctx.drawImage(video,(960-w)/2,(540-h)/2,w,h);ctx.restore();
-    if(enabled&&recognizer&&!recognitionBusy&&now-lastInference>100){
+    if(enabled&&recognizer&&!recognitionBusy&&now-lastInference>40){
       lastInference=now;recognitionBusy=true;const epoch=recognitionEpoch;
       const frameWidth=video.videoWidth,frameHeight=video.videoHeight;
       recognizer.recognize(video,now).then(result=>{
@@ -140,12 +140,16 @@ function frame(now){
   }
   try{effects.render(ctx,now);}catch(error){effects.clear();status('An effect could not render. Camera is still running.');console.error(error);}
   if(!stream&&!pattern&&!effects.playing)$('placeholder').style.display='flex';
-  if(outputActive&&!outputBusy&&now-lastOutput>1000/24){
-    lastOutput=now;outputBusy=true;
+  if(outputActive&&!outputBusy){
+    outputBusy=true;
     outctx.setTransform(1,0,0,1,0,0);outctx.clearRect(0,0,960,540);
     if(stream){outctx.translate(960,0);outctx.scale(-1,1);}
     if(stream||pattern)outctx.drawImage(canvas,0,0);
     window.helloMotion.frame(outctx.getImageData(0,0,960,540).data).catch(e=>{$('output-status').textContent=e.message;}).finally(()=>{outputBusy=false;});
   }
-  requestAnimationFrame(frame);
-}requestAnimationFrame(frame);
+}
+// Camera production must continue when Windows hides/minimizes the preview.
+// One timer, one IPC frame in flight, and no queued catch-up frames.
+const FRAME_MS=1000/24;
+function tick(){const began=performance.now();try{frame(began);}finally{setTimeout(tick,Math.max(1,FRAME_MS-(performance.now()-began)));}}
+tick();
