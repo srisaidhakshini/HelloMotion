@@ -4,7 +4,7 @@ export async function run({only}={}){
  const recognizer=await createDetector(),source=document.createElement('canvas'),scratch=document.createElement('canvas');
  source.width=960;source.height=540;const c=source.getContext('2d');
  let singleImage;const reports=[];let timestamp=performance.now();
- const cases=[['thumbs_up',1,'thumbs'],['victory',1,'balloons'],['thumbs_down',1,null],['thumbs_up',2,'fireworks'],['victory',2,'confetti'],['thumbs_down',2,'rain'],['pointing_up',1,null],['blank',0,null]];
+ const cases=[['thumbs_up',1,'thumbs'],['victory',1,'balloons'],['thumbs_down',1,null],['thumbs_up',2,'fireworks'],['victory',2,'confetti'],['thumbs_down',2,'rain'],['pointing_up',1,'sparkles'],['blank',0,null]];
  if(only==='heart_reference')cases.push(['heart_reference',1,'hearts']);
  try{
   for(const [name,copies,expected] of cases.filter(item=>!only||(item[0]===only&&(item[1]===2||only==='heart_reference')))){

@@ -49,6 +49,8 @@ export function reactionFor(result){
   }
   // Heart hands is a landmark gesture, not one of the model's canned classes.
   if(isHeart(result.landmarks))return 'hearts';
+  if(names.length===2&&names.every(n=>n==='Open_Palm'))return 'butterflies';
+  if(names.includes('Pointing_Up'))return 'sparkles';
   if(names.includes('Thumb_Up'))return 'thumbs';
   if(names.includes('Victory'))return 'balloons';
   return null;
@@ -58,6 +60,7 @@ export class GestureGate {
     Object.assign(this,{holdMs,cooldownMs,gapMs,releaseMs});this.reset();
   }
   reset(){this.candidate=null;this.evidence=0;this.lastSeen=-Infinity;this.previousAt=null;this.previousName=null;this.pending=null;this.pendingSince=0;this.latched=null;this.releaseSince=null;this.last=-Infinity;}
+  commit(name,now){if(now-this.last<this.cooldownMs)return null;this.last=now;this.latched=name;return name;}
   get progress(){return Math.min(1,this.evidence/this.holdMs);}
   update(name,now){
     const dt=this.previousAt===null?0:Math.min(250,Math.max(0,now-this.previousAt));

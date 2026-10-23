@@ -1,11 +1,15 @@
 import {reactionFor, GestureGate, classifyHands} from './gestures.mjs';
 import {ReactionEffects,handAnchor} from './effects.mjs';
 import {createDetector} from './detector-client.mjs';
+import {MotionGestures} from './motion-gestures.mjs';
+import {REACTIONS} from './reaction-catalog.mjs';
+import {pointAnchor} from './effects.mjs';
 const $ = id => document.getElementById(id);
 const video=$('video'), canvas=$('canvas'), ctx=canvas.getContext('2d');
-const reactions=[['hearts','💗','Hearts','Heart hands'],['thumbs','👍','Thumbs up','One thumbs up'],['balloons','🎈','Balloons','Peace sign'],['rain','🌧️','Rain','Two thumbs down'],['confetti','🎉','Confetti','Two peace signs'],['fireworks','✨','Fireworks','Two thumbs up']];
+const reactions=REACTIONS;
 let stream, recognizer, enabled=false, starting=false, lastInference=0, modelPromise;
 const gate=new GestureGate();
+const motions=new MotionGestures();
 let recognitionBusy=false,recognitionEpoch=0;
 const effects=new ReactionEffects();
 let lastHand=null,lastHandAt=0;
@@ -42,7 +46,7 @@ for (const [id,icon,label,gesture] of reactions) {
 }
 function trigger(id,anchor) {
   const now=performance.now();
-  effects.trigger(id,now,anchor || (now-lastHandAt<600?lastHand:null));
+  try{effects.trigger(id,now,anchor || (now-lastHandAt<600?lastHand:null));}catch(error){status('This 3D effect could not start: '+error.message);console.error(error);return;}
   $('placeholder').style.display='none';
   status(reactions.find(r=>r[0]===id)[2]+' · '+(stream?'Camera running locally.':'Demo preview · camera is off.'));
 }
@@ -58,6 +62,7 @@ function showDetection(result,name,now){
   if(!count){gestureFeedback('No hands detected. Keep your full hand in view with light on it.');return;}
   const label=reactions.find(r=>r[0]===name)?.[2];
   const prefix=count+' '+(count===1?'hand':'hands')+' detected';
+  if(!label&&motions.hint){gestureFeedback(prefix+' · '+motions.hint,motions.progress);return;}
   if(!label){gestureFeedback(prefix+(classifyHands(result).includes('Thumb_Down')?' · Show two thumbs down for rain.':' · Try a clear thumbs up or peace sign.'));return;}
   if(gate.latched===name){gestureFeedback(prefix+' · '+label+' sent. Relax your hands to try again.',1);return;}
   if(gate.progress>=1&&now-gate.last<gate.cooldownMs){gestureFeedback(prefix+' · '+label+' ready. Waiting for the previous reaction.',1);return;}
@@ -65,16 +70,16 @@ function showDetection(result,name,now){
 }
 async function toggle() {
   if(starting)return;
-  if(enabled){enabled=false;recognitionEpoch++;gate.reset();$('gestures').textContent='Gestures off';$('gestures').setAttribute('aria-pressed','false');status('Gesture recognition paused.');gestureFeedback('Gestures are off. Enable them above to react with your hands.');return;}
+  if(enabled){enabled=false;recognitionEpoch++;gate.reset();motions.reset();$('gestures').textContent='Gestures off';$('gestures').setAttribute('aria-pressed','false');status('Gesture recognition paused.');gestureFeedback('Gestures are off. Enable them above to react with your hands.');return;}
   starting=true;$('gestures').disabled=true;status('Loading local gesture recognition…');gestureFeedback('Preparing hand detection…');
-  try{await loadModel();enabled=true;gate.reset();$('gestures').textContent='Gestures on';$('gestures').setAttribute('aria-pressed','true');status(stream?'Gestures ready. Hold a pose for a moment.':'Gestures ready. Start your camera to use them.');gestureFeedback(stream?'Looking for hands…':'Gestures are on. Start your camera to use them.');}
+  try{await loadModel();enabled=true;gate.reset();motions.reset();$('gestures').textContent='Gestures on';$('gestures').setAttribute('aria-pressed','true');status(stream?'Gestures ready. Hold a pose for a moment.':'Gestures ready. Start your camera to use them.');gestureFeedback(stream?'Looking for hands…':'Gestures are on. Start your camera to use them.');}
   catch(e){console.error(e);status('Gesture model unavailable. See README for setup. Reaction buttons still work.');gestureFeedback('Hand detection could not load. Please restart HelloMotion.');}
   finally{starting=false;$('gestures').disabled=false;}
 }
 $('gestures').onclick=toggle;
 window.helloMotion?.onToggle(toggle);
 document.addEventListener('keydown',e=>{if(!window.helloMotion&&e.ctrlKey&&e.shiftKey&&e.code==='KeyH'){e.preventDefault();toggle();}});
-function stop(){recognitionEpoch++;window.helloMotion?.output('clear').catch(console.error);stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;gate.reset();effects.clear();lastHand=null;lastHandAt=0;$('placeholder').style.display='flex';$('start').textContent='Start camera';status('Camera is off. No video is being captured.');gestureFeedback(enabled?'Gestures are on. Start your camera to use them.':'Gestures are off. Enable them above to react with your hands.');}
+function stop(){recognitionEpoch++;window.helloMotion?.output('clear').catch(console.error);stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;gate.reset();motions.reset();effects.clear();lastHand=null;lastHandAt=0;$('placeholder').style.display='flex';$('start').textContent='Start camera';status('Camera is off. No video is being captured.');gestureFeedback(enabled?'Gestures are on. Start your camera to use them.':'Gestures are off. Enable them above to react with your hands.');}
 async function start(){
   pattern=false;$('pattern').setAttribute('aria-pressed','false');
   $('start').disabled=true;
@@ -95,7 +100,7 @@ async function start(){
 }
 $('start').onclick=()=>stream?stop():start();
 $('camera').onchange=async()=>{if(stream){stop();await start();}};
-window.addEventListener('beforeunload',()=>{enabled=false;recognitionEpoch++;stream?.getTracks().forEach(t=>t.stop());effects.clear();recognizer?.close();});
+window.addEventListener('beforeunload',()=>{enabled=false;recognitionEpoch++;stream?.getTracks().forEach(t=>t.stop());effects.dispose();recognizer?.close();});
 function frame(now){
   ctx.clearRect(0,0,960,540);
   if(pattern){
@@ -113,19 +118,27 @@ function frame(now){
       const frameWidth=video.videoWidth,frameHeight=video.videoHeight;
       recognizer.recognize(video,now).then(result=>{
         if(!enabled||!stream||epoch!==recognitionEpoch)return;
-        const received=performance.now(),anchor=handAnchor(result,frameWidth,frameHeight);
+        const received=performance.now(),name=reactionFor(result),motion=motions.update(result,received);
+        let anchor=handAnchor(result,frameWidth,frameHeight);
+        if(name==='sparkles'){
+          const hand=Math.max(0,classifyHands(result).indexOf('Pointing_Up'));
+          anchor=pointAnchor(result,[8],hand,frameWidth,frameHeight);
+        }else if(motion?.id==='bloom')anchor=pointAnchor(result,[0,5,9,13,17],motion.hand,frameWidth,frameHeight);
         if(anchor){lastHand=anchor;lastHandAt=received;}
-        const name=reactionFor(result),reaction=gate.update(name,received);
-        if(reaction)trigger(reaction,anchor);showDetection(result,name,received);
+        let reaction=gate.update(name,received);
+        if(!reaction&&motion)reaction=gate.commit(motion.id,received);
+        if(reaction)trigger(reaction,anchor);
+        if(name==='sparkles')effects.follow('sparkles',anchor,received);
+        showDetection(result,reaction||name,received);
       }).catch(error=>{
         if(epoch!==recognitionEpoch||!enabled)return;
-        enabled=false;recognizer?.close();recognizer=null;modelPromise=null;gate.reset();
+        enabled=false;recognizer?.close();recognizer=null;modelPromise=null;gate.reset();motions.reset();
         $('gestures').textContent='Gestures off';$('gestures').setAttribute('aria-pressed','false');
         status('Hand detection stopped. Enable gestures to retry.');gestureFeedback(error.message||String(error));console.error(error);
       }).finally(()=>{recognitionBusy=false;});
     }
   }
-  effects.render(ctx,now);
+  try{effects.render(ctx,now);}catch(error){effects.clear();status('An effect could not render. Camera is still running.');console.error(error);}
   if(!stream&&!pattern&&!effects.playing)$('placeholder').style.display='flex';
   if(outputActive&&!outputBusy&&now-lastOutput>1000/24){
     lastOutput=now;outputBusy=true;
