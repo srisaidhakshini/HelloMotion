@@ -200,6 +200,9 @@ namespace winrt::WindowsSample::implementation
             RETURN_HR_MSG(MF_E_INVALIDREQUEST, "Stream is not in running state, state:%d, selected: %d", m_streamState, m_bSelected);
         }
 
+        // Bound delivery to the advertised 30 fps. Never queue old producer frames.
+        auto now=MFGetSystemTime();
+        if(m_nextSampleTime>now)Sleep(DWORD((m_nextSampleTime-now+9999)/10000));
         RETURN_IF_FAILED(m_spSampleAllocator->AllocateSample(&sample));
         RETURN_IF_FAILED(sample->GetBufferByIndex(0, &outputBuffer));
         RETURN_IF_FAILED(outputBuffer->QueryInterface(IID_PPV_ARGS(&buffer2D)));
@@ -214,7 +217,9 @@ namespace winrt::WindowsSample::implementation
         //RETURN_IF_FAILED(WriteSampleData(pbuf, bufferLength, pitch, NUM_IMAGE_COLS, NUM_IMAGE_ROWS));
         RETURN_IF_FAILED(buffer2D->Unlock2D());
 
-        RETURN_IF_FAILED(sample->SetSampleTime(MFGetSystemTime()));
+        const auto sampleTime=MFGetSystemTime();
+        m_nextSampleTime=sampleTime+333333;
+        RETURN_IF_FAILED(sample->SetSampleTime(sampleTime));
         RETURN_IF_FAILED(sample->SetSampleDuration(333333));
         if (pToken != nullptr)
         {
@@ -320,6 +325,7 @@ namespace winrt::WindowsSample::implementation
 
         m_bIsShutdown = true;
         m_parent.reset();
+        m_spFrameGenerator.reset();
 
         if (m_spEventQueue != nullptr)
         {
@@ -446,6 +452,7 @@ namespace winrt::WindowsSample::implementation
             RETURN_IF_FAILED(m_spEventQueue->QueueEventParamVar(MEStreamStarted, GUID_NULL, S_OK, nullptr));
         }
 
+        m_nextSampleTime=0;
         // Set stream state
         m_streamState = MF_STREAM_STATE_RUNNING;
 
@@ -455,6 +462,8 @@ namespace winrt::WindowsSample::implementation
     _Requires_lock_held_(m_Lock)
     HRESULT SimpleMediaStream::StopInternal(bool bSendEvent)
     {
+        if(m_spFrameGenerator)m_spFrameGenerator->reader.Stop();
+        m_nextSampleTime=0;
         // Set stream state
         m_streamState = MF_STREAM_STATE_STOPPED;
 
