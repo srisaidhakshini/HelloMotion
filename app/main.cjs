@@ -57,6 +57,45 @@ app.whenReady().then(() => {
       }catch(e){console.error(e);app.exit(1);}
     });
   }
+  if(process.argv.includes('--producer-stability')){
+    win.webContents.once('did-finish-load',async()=>{
+      try{
+        // Isolated output buffer: never activate or replace the user's virtual device.
+        const {FrameServer,HEADER}=require('./frame-server.cjs');output.frames=new FrameServer();await output.frames.start();output.active=true;
+        await win.webContents.executeJavaScript(`(async()=>{
+          document.getElementById('pattern').click();
+          const until=Date.now()+10000;while(document.getElementById('output').getAttribute('aria-pressed')!=='true'&&Date.now()<until)await new Promise(r=>setTimeout(r,100));
+          if(document.getElementById('output').getAttribute('aria-pressed')!=='true')throw Error('Isolated output did not start');
+        })()`);
+        win.minimize();await win.webContents.executeJavaScript(`{let i=10;window.stabilityEffects=setInterval(()=>{document.querySelectorAll('.reaction')[i].click();i=i===13?10:i+1;},1100);}`);
+        const until=Date.now()+8000;let sampled=0,black=0,maxAge=0;const sequences=new Set();
+        while(Date.now()<until){await new Promise(r=>setTimeout(r,50));const frame=output.frames.frame;if(!frame)continue;
+          sampled++;sequences.add(frame.readUInt32LE(24));maxAge=Math.max(maxAge,performance.now()-output.frames.updated);
+          if(frame[HEADER]!==194||frame[HEADER+1]!==178||frame[HEADER+2]!==232)black++;
+        }
+        console.log(JSON.stringify({sampled,uniqueFrames:sequences.size,black,maxFrameAgeMs:Math.round(maxAge)}));
+        if(black||sequences.size<50||maxAge>1000)throw Error('Minimized frame production stalled');
+        await output.stop();console.log('PASS: minimized creative effects maintain independent camera frame production');app.exit(0);
+      }catch(error){console.error(error);await output.stop();app.exit(1);}
+    });
+  }
+  if(process.argv.includes('--camera-stability')){
+    win.webContents.once('did-finish-load',async()=>{
+      try{
+        await win.webContents.executeJavaScript(`(async()=>{
+          document.getElementById('pattern').click();document.getElementById('output').click();
+          const until=Date.now()+15000;while(document.getElementById('output').disabled&&Date.now()<until)await new Promise(r=>setTimeout(r,100));
+          if(document.getElementById('output').getAttribute('aria-pressed')!=='true')throw Error(document.getElementById('output-status').textContent);
+        })()`);
+        await new Promise(r=>setTimeout(r,1000));win.minimize();
+        if(process.argv.includes('--with-effects'))await win.webContents.executeJavaScript(`{
+          let i=10;window.stabilityEffects=setInterval(()=>{document.querySelectorAll('.reaction')[i].click();i=i===13?10:i+1;},1100);
+        }`);
+        await new Promise((resolve,reject)=>require('node:child_process').execFile(path.join(__dirname,'..','native','bin','HelloMotionProbe.exe'),['--pattern','--stability'],{windowsHide:true,timeout:30000},(err,stdout,stderr)=>{console.log(stdout);err?reject(Error(stderr||err.message)):resolve();}));
+        await output.stop();console.log('PASS: minimized HelloMotion maintains moving virtual-camera output');app.exit(0);
+      }catch(error){console.error(error);await output.stop();app.exit(1);}
+    });
+  }
   if(process.argv.includes('--effects-demo')){
     win.webContents.once('did-finish-load',async()=>{
       try{
@@ -64,6 +103,12 @@ app.whenReady().then(() => {
         const fs=require('node:fs'),dir=path.join(__dirname,'..','work','effects-preview');fs.mkdirSync(dir,{recursive:true});
         fs.writeFileSync(path.join(dir,'new-effects-demo.webm'),Buffer.from(data.split(',')[1],'base64'));console.log('Animation demo saved.');app.exit(0);
       }catch(error){console.error(error);app.exit(1);}
+    });
+  }
+  if(process.argv.includes('--spatial-worker-smoke')){
+    win.webContents.once('did-finish-load',async()=>{
+      try{console.log(JSON.stringify(await win.webContents.executeJavaScript("import('./effects-preview.mjs').then(m=>m.checkSpatialWorker())")));app.exit(0);}
+      catch(error){console.error(error);app.exit(1);}
     });
   }
   if(process.argv.includes('--spatial-smoke')){
@@ -87,7 +132,7 @@ app.whenReady().then(() => {
     win.webContents.once('did-finish-load', async () => {
       try {
         await win.webContents.executeJavaScript(`(async () => {
-          if(document.querySelectorAll('.reaction').length !== 10) throw Error('Missing reaction buttons');
+          if(document.querySelectorAll('.reaction').length !== 14) throw Error('Missing reaction buttons');
           document.querySelector('.reaction').click();
           if(!document.getElementById('status').textContent.includes('Hearts')) throw Error('Reaction failed');
           document.getElementById('gestures').click();
