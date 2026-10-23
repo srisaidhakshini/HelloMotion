@@ -1,6 +1,6 @@
 # HelloMotion
 
-Free, open-source gesture reactions for Windows 11 x64. Development preview **0.3.1**.
+Free, open-source gesture reactions for Windows 11 x64. Development preview **0.4.0**.
 
 ![HelloMotion reaction effects: hearts, thumbs-up, balloons, confetti, rain, fireworks](docs/images/reactions.png)
 
@@ -22,7 +22,7 @@ Only the preview is mirrored; outgoing webcam video is normally oriented. Closin
 
 ## Features and verification
 
-Six custom procedural animations: glossy red hearts emitted from the detected hand position; golden thumbs-up glass bubbles; shaded balloons with swaying strings; ballistic confetti; cloud/rain/lightning scene; and fireworks with rocket trails and spark bursts. No emoji glyphs are used in the video effects. Reaction buttons retain emoji labels. Local MediaPipe recognition with an 800 ms hold, 3 second cooldown, and release before retrigger. Heart hands uses an experimental heuristic. Native camera: RGB32/NV12, 960x540.
+Ten effects, including four locally rendered Three.js 3D animations. The original six custom procedural animations: glossy red hearts emitted from the detected hand position; golden thumbs-up glass bubbles; shaded balloons with swaying strings; ballistic confetti; cloud/rain/lightning scene; and fireworks with rocket trails and spark bursts. No emoji glyphs are used in the video effects. Reaction buttons retain emoji labels. Local MediaPipe recognition with an 800 ms hold, 3 second cooldown, and release before retrigger. Heart hands uses an experimental heuristic. Native camera: RGB32/NV12, 960x540.
 
 | Hearts | Thumbs up | Balloons |
 | :---: | :---: | :---: |
@@ -87,6 +87,23 @@ Media-source foundation: Microsoft's MIT-licensed Windows-Camera sample, commit 
 - Brief missing/incorrect predictions preserve hold progress. A real neutral release is required before repeating a held pose.
 - The preview now shows the hand count, recognized reaction, and hold progress. Heart hands uses improved landmark geometry but remains experimental.
 
-`npm run gestures:check` downloads Google's four sample photos into ignored work/ if missing, and tests them through the same background detector used by the camera. Eight checks pass: thumbs up, peace, single thumbs down (no reaction), double thumbs up, double peace, double thumbs down, pointing up (no reaction), and blank input. The two-hand fixtures are constructed by placing the sample and a mirrored copy side by side. These checks do not establish accuracy across all lighting, hand poses, or webcams.
+`npm run gestures:check` downloads Google's four sample photos into ignored work/ if missing, and tests them through the same background detector used by the camera. Eight checks pass: thumbs up, peace, single thumbs down (no reaction), double thumbs up, double peace, double thumbs down, pointing up (magic sparkles), and blank input. The two-hand fixtures are constructed by placing the sample and a mirrored copy side by side. These checks do not establish accuracy across all lighting, hand poses, or webcams.
 
 A simulated-webcam test also verified the actual camera-start → enable gestures → hold → reaction-trigger flow, without using a physical webcam. Physical-camera validation with the user is still needed. No camera frames are saved or uploaded.
+
+## New 3D effects (0.4.0)
+
+![Flower bloom, butterflies, magic sparkles, and silk ribbons](docs/images/new-effects.png)
+
+| Effect | Gesture | Animation |
+| --- | --- | --- |
+| Flower bloom | Hold a closed fist briefly, then open that palm | A stem grows from the palm; layered petals unfold and drift away. |
+| Butterflies | Hold two open palms | Seven butterflies with hinged wings fly outward in depth. |
+| Magic sparkles | Hold one index finger pointing upward | A glowing star and a fading trail follow the fingertip. |
+| Silk ribbons | Wave one open palm side to side twice | Lit, twisting satin ribbons flow across the frame. |
+
+All four also have manual buttons. Flower and wave gestures use movement sequences; butterflies and sparkles use the existing hold timer. All share the existing cooldown. Flower is anchored to the palm at trigger time; sparkles continue tracking while pointing. Three.js renders real meshes with lighting, reflection, depth, and transparent compositing into the same virtual-camera output. Models, textures, and geometry are generated locally; no runtime downloads are needed.
+
+`npm run effects:preview` creates stills and motion contact sheets under ignored `work/effects-preview/`. `npm run effects:demo` records a generated-background animation demo there, without using the webcam. `npm run effects:check` checks rendering, expiry, and cleanup without saving a preview. Gesture sequence tests cover intentional movements and false-trigger controls; live webcam tuning and performance checks on other machines remain necessary.
+
+Three.js is MIT licensed; its license is bundled with the app under notices/Three.txt.
