@@ -1,13 +1,13 @@
 {
   "name": "hellomotion",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "private": true,
   "description": "Local-first gesture reactions for Windows video calls",
   "license": "MIT",
   "main": "app/main.cjs",
   "scripts": {
     "start": "electron .",
-    "test": "node --test test/gestures.test.mjs test/frame-server.test.cjs test/effects.test.mjs",
+    "test": "node --test test/gestures.test.mjs test/frame-server.test.cjs test/effects.test.mjs test/new-gestures.test.mjs",
     "dist": "electron-builder --win nsis",
     "camera:build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-camera.ps1",
     "smoke": "electron . --smoke-test",
@@ -15,10 +15,13 @@
     "camera:smoke": "electron . --camera-smoke",
     "setup": "node scripts/setup-assets.cjs",
     "effects:preview": "electron . --effects-preview",
-    "gestures:check": "node scripts/check-gestures.cjs"
+    "gestures:check": "node scripts/check-gestures.cjs",
+    "effects:demo": "electron . --effects-demo",
+    "effects:check": "electron . --spatial-smoke"
   },
   "dependencies": {
-    "@mediapipe/tasks-vision": "0.10.32"
+    "@mediapipe/tasks-vision": "0.10.32",
+    "three": "0.186.1"
   },
   "devDependencies": {
     "electron": "42.0.0",
@@ -29,7 +32,8 @@
     "productName": "HelloMotion",
     "files": [
       "app/**/*",
-      "node_modules/@mediapipe/**/*"
+      "node_modules/@mediapipe/**/*",
+      "node_modules/three/build/**/*"
     ],
     "win": {
       "target": "nsis",
