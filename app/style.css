@@ -3,3 +3,5 @@
 .compact{font-size:12px;padding:7px 10px}#output[aria-pressed=true],#pattern[aria-pressed=true]{background:#365b46;color:#fff}
 
 .gesture-feedback{margin:0 8px 9px;padding:10px 12px;background:#f2f5ef;border-radius:8px;font-size:12px;color:#536b59;min-height:58px}.gesture-feedback progress{display:block;width:100%;height:5px;margin-top:8px;accent-color:#547a5e;border:0;border-radius:4px;overflow:hidden}.gesture-feedback progress::-webkit-progress-bar{background:#dde5d9}.gesture-feedback progress::-webkit-progress-value{background:#668e70;transition:width .12s}
+
+.reaction{padding:9px 5px;gap:3px}.reaction span{font-size:24px}.reaction small{line-height:1.3}

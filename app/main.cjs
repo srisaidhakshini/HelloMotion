@@ -57,12 +57,27 @@ app.whenReady().then(() => {
       }catch(e){console.error(e);app.exit(1);}
     });
   }
+  if(process.argv.includes('--effects-demo')){
+    win.webContents.once('did-finish-load',async()=>{
+      try{
+        const data=await win.webContents.executeJavaScript("import('./effects-preview.mjs').then(m=>m.recordDemo())");
+        const fs=require('node:fs'),dir=path.join(__dirname,'..','work','effects-preview');fs.mkdirSync(dir,{recursive:true});
+        fs.writeFileSync(path.join(dir,'new-effects-demo.webm'),Buffer.from(data.split(',')[1],'base64'));console.log('Animation demo saved.');app.exit(0);
+      }catch(error){console.error(error);app.exit(1);}
+    });
+  }
+  if(process.argv.includes('--spatial-smoke')){
+    win.webContents.once('did-finish-load',async()=>{
+      try{const result=await win.webContents.executeJavaScript("import('./effects-preview.mjs').then(m=>m.renderPreviews())");console.log(JSON.stringify(result.metrics));app.exit(0);}
+      catch(error){console.error(error);app.exit(1);}
+    });
+  }
   if(process.argv.includes('--effects-preview')){
     win.webContents.once('did-finish-load',async()=>{
       try{
         const results=await win.webContents.executeJavaScript("import('./effects-preview.mjs').then(m=>m.renderPreviews())");
         const fs=require('node:fs');const dir=path.join(__dirname,'..','work','effects-preview');fs.mkdirSync(dir,{recursive:true});
-        for(const [name,data] of [['reactions',results.sheet],['motion',results.film],...results.frames.map(f=>[f.id,f.data])])fs.writeFileSync(path.join(dir,name+'.png'),Buffer.from(data.split(',')[1],'base64'));
+        for(const [name,data] of [['reactions',results.sheet],['motion',results.film],['new-effects',results.newSheet],...results.frames.map(f=>[f.id,f.data])])fs.writeFileSync(path.join(dir,name+'.png'),Buffer.from(data.split(',')[1],'base64'));
         fs.writeFileSync(path.join(dir,'metrics.json'),JSON.stringify(results.metrics,null,2));
         console.log(JSON.stringify(results.metrics));app.exit(0);
       }catch(e){console.error(e);app.exit(1);}
@@ -72,7 +87,7 @@ app.whenReady().then(() => {
     win.webContents.once('did-finish-load', async () => {
       try {
         await win.webContents.executeJavaScript(`(async () => {
-          if(document.querySelectorAll('.reaction').length !== 6) throw Error('Missing reaction buttons');
+          if(document.querySelectorAll('.reaction').length !== 10) throw Error('Missing reaction buttons');
           document.querySelector('.reaction').click();
           if(!document.getElementById('status').textContent.includes('Hearts')) throw Error('Reaction failed');
           document.getElementById('gestures').click();
