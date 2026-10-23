@@ -12,17 +12,10 @@ The app combines your webcam and the effects into one **virtual camera**. Select
 
 Hand recognition and rendering run on your computer. The project is inspired by the playful gesture reactions on macOS, with its own collection of fourteen effects for Windows.
 
-```text
-   +-------------------------------------------------------------+
-   |                                                             |
-   |    H E L L O M O T I O N                  *     .           |
-   |                                           .  +              |
-   |      \o/         .  *  .        +------------------+        |
-   |       |   ---->  a little  ---->|  your next call  |        |
-   |      / \          magic        +------------------+         |
-   |                                                             |
-   +-------------------------------------------------------------+
-```
+A looping, text-drawn version of the journey from a wave to a video-call reaction. The actual effects are pictured together below.
+
+![Animated ASCII workflow: a waving person sends moving stars into a video-call window](docs/images/hellomotion-ascii.gif)
+
 
 **Windows 11 x64** / **14 effects** / **8 in 3D** / **MIT licensed** / **Preview 0.5.1**
 
@@ -165,24 +158,6 @@ Frames travel through an unpredictable local Windows named pipe and remain in me
 
 The coral, violet, and mint butterfly-ribbon logo represents movement and transformation. The full logo, transparent symbol, and multi-resolution Windows icon live in [`app/assets/`](app/assets/). The symbol appears in the app header and camera placeholder, window/taskbar icon, installer, uninstaller, and installed shortcuts. See [the brand notes](docs/branding.md) for asset usage and design provenance.
 
-## License and credits
-
-HelloMotion is [MIT licensed](LICENSE).
-
-- Native media-source foundation: Microsoft's [Windows-Camera sample](https://github.com/microsoft/Windows-Camera/tree/master/Samples/VirtualCamera), commit `626f8b19c5f367602f2e89c6b314573d3776c9df`. Original copyright and MIT notices are retained under `native/` and bundled with the installer.
-- Gesture recognition: [Google MediaPipe Tasks Vision](https://developers.google.com/edge/mediapipe/solutions/vision/gesture_recognizer/web_js).
-- 3D rendering: [Three.js](https://threejs.org/), with its MIT license bundled under `notices/Three.txt`.
-- Windows camera API: [MFCreateVirtualCamera](https://learn.microsoft.com/en-us/windows/win32/api/mfvirtualcamera/nf-mfvirtualcamera-mfcreatevirtualcamera).
-
-
----
-
-## A little ASCII in motion
-
-A looping, text-drawn version of the journey from a wave to a video-call reaction. The actual effects are pictured together below.
-
-![Animated ASCII workflow: a waving person sends moving stars into a video-call window](docs/images/hellomotion-ascii.gif)
-
 ## The effect gallery
 
 **All fourteen effects, together.** These are renders from HelloMotion on a generated background. In a call, the effects are composited over your webcam video. The first six use custom procedural artwork; the remaining eight use 3D geometry, lighting, and depth.
@@ -236,3 +211,15 @@ A looping, text-drawn version of the journey from a wave to a video-call reactio
                   |    make a little motion.
                  / \
 ```
+
+## License and credits
+
+HelloMotion is [MIT licensed](LICENSE).
+
+- Native media-source foundation: Microsoft's [Windows-Camera sample](https://github.com/microsoft/Windows-Camera/tree/master/Samples/VirtualCamera), commit `626f8b19c5f367602f2e89c6b314573d3776c9df`. Original copyright and MIT notices are retained under `native/` and bundled with the installer.
+- Gesture recognition: [Google MediaPipe Tasks Vision](https://developers.google.com/edge/mediapipe/solutions/vision/gesture_recognizer/web_js).
+- 3D rendering: [Three.js](https://threejs.org/), with its MIT license bundled under `notices/Three.txt`.
+- Windows camera API: [MFCreateVirtualCamera](https://learn.microsoft.com/en-us/windows/win32/api/mfvirtualcamera/nf-mfvirtualcamera-mfcreatevirtualcamera).
+
+
+---
