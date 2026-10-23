@@ -1,10 +1,30 @@
 # HelloMotion
 
-Free, open-source gesture reactions for Windows 11 x64 video calls. **Development preview 0.5.0.**
+### Your hands. Your camera. A little magic.
 
-HelloMotion adds fourteen animated effects to your webcam, including eight 3D effects rendered locally with Three.js. Choose **HelloMotion (Windows Virtual Camera)** in Google Meet or WhatsApp Desktop to send the combined video.
+HelloMotion is a free, open-source Windows app that turns hand gestures into animated reactions during video calls. Make a heart with your hands, open a glowing portal, send jellyfish drifting through the frame, or let a golden phoenix take flight. You can trigger every effect with a button, too.
 
-![Galaxy portal, jellyfish ballet, snow globe, and golden phoenix](docs/images/creative-effects.png)
+The app combines your webcam and the effects into one **virtual camera**. Select **HelloMotion (Windows Virtual Camera)** in Google Meet or WhatsApp Desktop, and the other person sees the animation as part of your video. They do not need HelloMotion installed.
+
+Hand recognition and rendering run on your computer. The project is inspired by the playful gesture reactions on macOS, with its own collection of fourteen effects for Windows.
+
+```text
+   +-------------------------------------------------------------+
+   |                                                             |
+   |    H E L L O M O T I O N                  *     .           |
+   |                                           .  +              |
+   |      \o/         .  *  .        +------------------+        |
+   |       |   ---->  a little  ---->|  your next call  |        |
+   |      / \          magic        +------------------+         |
+   |                                                             |
+   +-------------------------------------------------------------+
+```
+
+**Windows 11 x64** / **14 effects** / **8 in 3D** / **MIT licensed** / **Preview 0.5.0**
+
+[Get started](#start-using-hellomotion) · [Gesture guide](#effects-and-gestures) · [Build it](#set-up-a-fresh-checkout) · [How it works](#from-a-gesture-to-the-other-side-of-the-call) · [All effect images](#the-effect-gallery)
+
+> **A project in motion.** HelloMotion is a working development preview. Local rendering and camera tests pass; live gesture accuracy, calling-app behavior across different machines, and installer upgrades still need broader testing.
 
 ## Start using HelloMotion
 
@@ -39,8 +59,6 @@ If you have a built installer, close HelloMotion before installing or updating i
 
 All effects have manual buttons. The video effects use custom artwork and geometry; emoji are used only as button labels.
 
-![Flower bloom, butterflies, magic sparkles, and silk ribbons](docs/images/new-effects.png)
-
 ## Run the existing development checkout
 
 On this laptop, the project is in `D:\Project\video-effects`:
@@ -72,7 +90,34 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup-camera.ps1
 
 Then launch normally with `npm start`. Development registration points to this checkout, so keep it in place. See [native/README.md](native/README.md) for the camera architecture and removal instructions.
 
-## Smooth rendering and camera output
+## From a gesture to the other side of the call
+
+```text
+                         ON YOUR COMPUTER
+
+  +-------------+     +-------------------+     +----------------+
+  | Your webcam |---->| Recognize a hand  |---->| Choose a moment |
+  +-------------+     | in a local worker |     +-------+--------+
+         |            +-------------------+             |
+         |                                      +-------v--------+
+         |                                      | Animate in 3D  |
+         |                                      | in its worker  |
+         |                                      +-------+--------+
+         |                                              |
+         +--------------------+-------------------------+
+                              v
+                   +----------------------+
+                   | Webcam + animation   |
+                   | = HelloMotion camera |
+                   +----------+-----------+
+                              |
+                              v
+                   +----------------------+
+                   | Your video-call app  |
+                   +----------------------+
+```
+
+### Built to keep the conversation moving
 
 - Gesture recognition runs in a background worker, with one frame in flight. Brief uncertain predictions preserve hold progress; a neutral release is required before repeating a pose.
 - All eight 3D effects render in a separate OffscreenCanvas worker. Geometry setup and shader compilation do not block the camera's drawing loop. Effect scenes are cached, with at most eight cached scenes and three active effects.
@@ -106,7 +151,7 @@ Close other HelloMotion instances before tests that activate the Windows virtual
 
 **Still needs validation:** live-camera accuracy of the new gestures, real calls in Meet and WhatsApp across machines, sustained performance on 8 GB laptops, and clean-machine installation, updates, and removal. Sample-photo and generated-pattern tests do not establish real-world gesture accuracy or calling-app compatibility. This is a development preview.
 
-## Privacy
+## Your camera stays yours
 
 Camera frames and recognition stay on the device. HelloMotion has no account requirement, analytics, microphone capture, webcam recording, video uploads, or network listener. Setup downloads dependencies and the gesture model; runtime assets are local. The optional demo command records only a generated background and effects.
 
@@ -120,3 +165,66 @@ HelloMotion is [MIT licensed](LICENSE).
 - Gesture recognition: [Google MediaPipe Tasks Vision](https://developers.google.com/edge/mediapipe/solutions/vision/gesture_recognizer/web_js).
 - 3D rendering: [Three.js](https://threejs.org/), with its MIT license bundled under `notices/Three.txt`.
 - Windows camera API: [MFCreateVirtualCamera](https://learn.microsoft.com/en-us/windows/win32/api/mfvirtualcamera/nf-mfvirtualcamera-mfcreatevirtualcamera).
+
+
+---
+
+## A little ASCII in motion
+
+A looping, text-drawn version of the journey from a wave to a video-call reaction. The actual effects are pictured together below.
+
+![Animated ASCII workflow: a waving person sends moving stars into a video-call window](docs/images/hellomotion-ascii.gif)
+
+## The effect gallery
+
+**All fourteen effects, together.** These are renders from HelloMotion on a generated background. In a call, the effects are composited over your webcam video. The first six use custom procedural artwork; the remaining eight use 3D geometry, lighting, and depth.
+
+### The everyday reactions
+
+| Hearts | Thumbs up |
+| :---: | :---: |
+| ![Glossy red hearts rising from the hands](docs/images/hearts.png) | ![Golden thumbs-up reaction bubbles](docs/images/thumbs.png) |
+| **Heart hands** | **One thumbs up** |
+
+| Balloons | Rain |
+| :---: | :---: |
+| ![Shaded balloons floating upward](docs/images/balloons.png) | ![Rain clouds and lightning](docs/images/rain.png) |
+| **One peace sign** | **Two thumbs down** |
+
+| Confetti | Fireworks |
+| :---: | :---: |
+| ![Colorful tumbling confetti](docs/images/confetti.png) | ![Firework bursts with sparks and trails](docs/images/fireworks.png) |
+| **Two peace signs** | **Two thumbs up** |
+
+### A little wonder in 3D
+
+| Flower bloom | Butterflies |
+| :---: | :---: |
+| ![Layered pink 3D flower opening above a stem](docs/images/bloom.png) | ![Colorful 3D butterflies flying outward](docs/images/butterflies.png) |
+| **Closed fist, then open palm** | **Two open palms** |
+
+| Magic sparkles | Silk ribbons |
+| :---: | :---: |
+| ![A glowing star with a flowing fingertip trail](docs/images/sparkles.png) | ![Twisting pastel 3D ribbons](docs/images/ribbons.png) |
+| **Point your index finger up** | **Wave one open palm** |
+
+### The imagination collection
+
+| Galaxy portal | Jellyfish ballet |
+| :---: | :---: |
+| ![Glowing galaxy portal with layered rings and orbiting crystals](docs/images/portal.png) | ![Three luminous jellyfish with flowing 3D tentacles](docs/images/jellyfish.png) |
+| **Two closed fists** | **Open palm + peace sign** |
+
+| Snow globe | Golden phoenix |
+| :---: | :---: |
+| ![Glass snow globe containing a winter village and falling snow](docs/images/snowglobe.png) | ![Golden phoenix spreading its layered feathered wings](docs/images/phoenix.png) |
+| **Open palm + thumbs up** | **Thumb, index, and pinky extended** |
+
+```text
+           .       *                     .
+       *       thanks for stopping by        +
+            .                        *
+                 \o/   say hello.
+                  |    make a little motion.
+                 / \
+```
