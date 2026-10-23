@@ -1,6 +1,6 @@
 {
   "name": "hellomotion",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "private": true,
   "description": "Local-first gesture reactions for Windows video calls",
   "license": "MIT",
@@ -40,13 +40,16 @@
     ],
     "win": {
       "target": "nsis",
-      "signAndEditExecutable": false
+      "signAndEditExecutable": true,
+      "icon": "app/assets/hellomotion-icon.ico"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "perMachine": true,
-      "include": "scripts/installer.nsh"
+      "include": "scripts/installer.nsh",
+      "installerIcon": "app/assets/hellomotion-icon.ico",
+      "uninstallerIcon": "app/assets/hellomotion-icon.ico"
     },
     "extraResources": [
       {
