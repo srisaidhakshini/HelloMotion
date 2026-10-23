@@ -49,7 +49,13 @@ export function reactionFor(result){
   }
   // Heart hands is a landmark gesture, not one of the model's canned classes.
   if(isHeart(result.landmarks))return 'hearts';
+  if(names.length===2){
+    if(names.every(n=>n==='Closed_Fist'))return 'portal';
+    if(names.includes('Open_Palm')&&names.includes('Victory'))return 'jellyfish';
+    if(names.includes('Open_Palm')&&names.includes('Thumb_Up'))return 'snowglobe';
+  }
   if(names.length===2&&names.every(n=>n==='Open_Palm'))return 'butterflies';
+  if(names.length===1&&names[0]==='ILoveYou')return 'phoenix';
   if(names.includes('Pointing_Up'))return 'sparkles';
   if(names.includes('Thumb_Up'))return 'thumbs';
   if(names.includes('Victory'))return 'balloons';

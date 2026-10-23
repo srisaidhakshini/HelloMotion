@@ -1,10 +1,12 @@
 import * as T from '../node_modules/three/build/three.module.js';
+import {creativeMethods} from './creative-effects.mjs';
 
 const W=960,H=540,TAU=Math.PI*2;
+function drawingCanvas(width,height){if(typeof document==='undefined')return new OffscreenCanvas(width,height);const c=document.createElement('canvas');c.width=width;c.height=height;return c;}
 const clamp=x=>Math.max(0,Math.min(1,x));
 const ease=x=>{x=clamp(x);return x*x*(3-2*x);};
 const colors=['#ffc46b','#f19fbb','#90d9ff','#b3a0ff','#73e2c1'];
-export const SPATIAL_IDS=new Set(['bloom','butterflies','sparkles','ribbons']);
+export const SPATIAL_IDS=new Set(['bloom','butterflies','sparkles','ribbons','portal','jellyfish','snowglobe','phoenix']);
 const v=(x=0,y=0,z=0)=>new T.Vector3(x,y,z);
 function mesh(geometry,material,parent){const m=new T.Mesh(geometry,material);m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;}
 function physical(color,options={}){return new T.MeshPhysicalMaterial({color,roughness:.34,metalness:0,envMapIntensity:.45,clearcoat:.38,clearcoatRoughness:.3,side:T.DoubleSide,transparent:true,...options});}
@@ -30,14 +32,14 @@ function wingGeometry(hind=false){
   const position=g.getAttribute('position'),uv=g.getAttribute('uv');for(let i=0;i<position.count;i++)uv.setXY(i,position.getX(i)/85,(position.getY(i)+65)/130);uv.needsUpdate=true;return g;
 }
 function wingTexture(hue){
-  const canvas=document.createElement('canvas');canvas.width=canvas.height=512;const c=canvas.getContext('2d');
+  const canvas=drawingCanvas(512,512);const c=canvas.getContext('2d');
   const g=c.createRadialGradient(60,250,8,180,250,400);g.addColorStop(0,'#172b4f');g.addColorStop(.16,`hsl(${hue},70%,54%)`);g.addColorStop(.55,`hsl(${hue+25},82%,69%)`);g.addColorStop(.78,'#15273e');g.addColorStop(.9,'#132332');g.addColorStop(1,'#091622');c.fillStyle=g;c.fillRect(0,0,512,512);
   c.lineWidth=3;c.strokeStyle='#10243b8a';for(let i=0;i<11;i++){const a=-1.3+i*.25;c.beginPath();c.moveTo(12,255);c.bezierCurveTo(150,255+Math.sin(a)*55,225,255+Math.sin(a)*220,490,255+Math.sin(a)*290);c.stroke();}
   for(let i=0;i<18;i++){const a=i/18*TAU;c.fillStyle='#fff2cece';c.beginPath();c.ellipse(330+Math.cos(a)*110,255+Math.sin(a)*205,4,7,a,0,TAU);c.fill();}
   const t=new T.CanvasTexture(canvas);t.colorSpace=T.SRGBColorSpace;t.anisotropy=2;return t;
 }
 function glowTexture(){
-  const canvas=document.createElement('canvas');canvas.width=canvas.height=64;const c=canvas.getContext('2d'),g=c.createRadialGradient(32,32,0,32,32,32);g.addColorStop(0,'#fff');g.addColorStop(.1,'#fffdf6');g.addColorStop(.25,'#fff6cf88');g.addColorStop(1,'#ffffff00');c.fillStyle=g;c.fillRect(0,0,64,64);return new T.CanvasTexture(canvas);
+  const canvas=drawingCanvas(64,64);const c=canvas.getContext('2d'),g=c.createRadialGradient(32,32,0,32,32,32);g.addColorStop(0,'#fff');g.addColorStop(.1,'#fffdf6');g.addColorStop(.25,'#fff6cf88');g.addColorStop(1,'#ffffff00');c.fillStyle=g;c.fillRect(0,0,64,64);return new T.CanvasTexture(canvas);
 }
 function ribbonGeometry(n){
   const geometry=new T.BufferGeometry();geometry.setAttribute('position',new T.BufferAttribute(new Float32Array((n+1)*2*3),3));
@@ -68,13 +70,13 @@ function trailMaterial(){
 }
 
 export function initializeSpatial(effect,random){
-  effect.life={bloom:7.5,butterflies:7,sparkles:6,ribbons:6.5}[effect.id];
+  effect.life={bloom:7.5,butterflies:7,sparkles:6,ribbons:6.5,portal:8,jellyfish:8.5,snowglobe:8,phoenix:8.2}[effect.id];
   effect.parameters=Array.from({length:48},()=>random());
 }
 
 export class SpatialEffects {
-  constructor(){
-    this.renderer=new T.WebGLRenderer({alpha:true,antialias:true,powerPreference:'low-power'});this.renderer.setSize(W,H,false);this.renderer.setPixelRatio(1);this.renderer.setClearColor(0,0);this.renderer.outputColorSpace=T.SRGBColorSpace;this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.15;
+  constructor(canvas=drawingCanvas(W,H)){
+    this.renderer=new T.WebGLRenderer({canvas,alpha:true,antialias:true,powerPreference:'low-power'});this.renderer.setSize(W,H,false);this.renderer.setPixelRatio(1);this.renderer.setClearColor(0,0);this.renderer.outputColorSpace=T.SRGBColorSpace;this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.15;
     this.renderer.debug.onShaderError=(gl,program,vertex,fragment)=>{throw Error('3D shader failed: '+gl.getShaderInfoLog(fragment));};
     this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=T.PCFSoftShadowMap;
     this.scene=new T.Scene();this.camera=new T.PerspectiveCamera(35,W/H,1,2000);this.camera.position.z=H/(2*Math.tan(35*Math.PI/360));
@@ -96,7 +98,7 @@ export class SpatialEffects {
   dispose(){this.clear();for(const i of this.cache.values())this.disposeInstance(i);this.cache.clear();for(const g of this.shared)g.dispose();for(const t of this.wingTextures)t.dispose();this.glow.dispose();this.environment.dispose();this.renderer.dispose();}
   build(effect){
     const reused=this.cache.get(effect.id);
-    if(reused){this.cache.delete(effect.id);reused.effect=effect;reused.root.visible=true;reused.root.position.set(effect.anchor.x-W/2,H/2-effect.anchor.y,0);if(effect.id==='sparkles'||effect.id==='ribbons')reused.root.position.set(0,0,0);if(effect.id==='sparkles'){reused.history=[];reused.lastTime=0;reused.position.set(effect.anchor.x-W/2,H/2-effect.anchor.y,25);}this.instances.set(effect,reused);return reused;}
+    if(reused){this.cache.delete(effect.id);reused.effect=effect;reused.root.visible=true;reused.root.position.set(effect.anchor.x-W/2,H/2-effect.anchor.y,0);if(effect.id==='sparkles'||effect.id==='ribbons')reused.root.position.set(0,0,0);if(effect.id==='sparkles'){reused.history=[];reused.lastTime=0;reused.velocity?.set(0,0,0);reused.rawTarget=null;reused.position.set(effect.anchor.x-W/2,H/2-effect.anchor.y,25);}this.instances.set(effect,reused);return reused;}
     const instance={root:new T.Group(),effect};this.scene.add(instance.root);instance.root.position.set(effect.anchor.x-W/2,H/2-effect.anchor.y,0);
     this['build'+effect.id](instance);this.instances.set(effect,instance);return instance;
   }
@@ -157,10 +159,37 @@ export class SpatialEffects {
   sparkPoint(e,t){return v(e.anchor.x-W/2+Math.sin(t*1.7)*140,H/2-e.anchor.y+55+Math.sin(t*2.2)*60,Math.cos(t*1.1)*35);}
   updatesparkles(i,t,now){
     const e=i.effect,fade=e.tracking?clamp((e.followUntil-now)/650):ease((e.life-t)/.8);this.setOpacity(i.root,fade);
-    const target=e.tracking?v(e.target.x-W/2,H/2-e.target.y,25):this.sparkPoint(e,t);
-    const dt=Math.max(0,Math.min(.1,t-i.lastTime));i.lastTime=t;i.position.lerp(target,1-Math.exp(-dt*15));if(!e.tracking)i.position.copy(target);i.head.position.copy(i.position);i.headStar.rotation.set(t*.7,t*1.8,t*1.1);i.halo.material.opacity=fade*.8;
+    let target=e.tracking?v(e.target.x-W/2,H/2-e.target.y,25):this.sparkPoint(e,t);
+    const dt=Math.max(0,Math.min(.1,t-i.lastTime));i.lastTime=t;
+    if(e.tracking){
+      // Detections arrive late and in steps: estimate finger velocity from them and extrapolate to this frame.
+      const raw=target;
+      if(!i.rawTarget){i.rawTarget=raw.clone();i.sampleAt=now;i.targetVelocity=v(0,0,0);}
+      else if(!raw.equals(i.rawTarget)){
+        const gap=Math.max(.016,(now-i.sampleAt)/1000);
+        i.targetVelocity.lerp(raw.clone().sub(i.rawTarget).divideScalar(gap).clampLength(0,3000),.65);
+        i.rawTarget.copy(raw);i.sampleAt=now;
+      }
+      const ahead=Math.min(.18,(now-i.sampleAt)/1000+.07);
+      target=i.rawTarget.clone().addScaledVector(i.targetVelocity,ahead);
+      // Critically damped spring on top keeps the motion continuous without adding much lag.
+      const vel=i.velocity||(i.velocity=v(0,0,0)),omega=2/.05,x=omega*dt,decay=1/(1+x+.48*x*x+.235*x*x*x);
+      const change=i.position.clone().sub(target),temp=vel.clone().addScaledVector(change,omega).multiplyScalar(dt);
+      vel.sub(temp.clone().multiplyScalar(omega)).multiplyScalar(decay);i.position.copy(target).add(change.add(temp).multiplyScalar(decay));
+    }else{i.position.copy(target);i.velocity?.set(0,0,0);}
+    i.head.position.copy(i.position);i.headStar.rotation.set(t*.7,t*1.8,t*1.1);i.halo.material.opacity=fade*.8;
     let points=[];
-    if(e.tracking){i.history.push({p:i.position.clone(),t});i.history=i.history.filter(p=>t-p.t<1.6).slice(-90);for(let n=0;n<=48;n++){const index=Math.floor(n/48*(i.history.length-1));points.push(i.history[Math.max(0,index)]?.p.clone()||i.position.clone());}}
+    if(e.tracking){
+      i.history.push({p:i.position.clone(),t});i.history=i.history.filter(h=>t-h.t<1.3);
+      const h=i.history,span=1.2;
+      for(let n=0;n<=48;n++){
+        // Sample the path by age, not by index, so the trail keeps its shape at any frame rate.
+        const age=(1-n/48)*span,when=t-age;let k=h.length-1;while(k>0&&h[k-1].t>=when)k--;
+        const a=h[Math.max(0,k-1)],b=h[k],f=b.t>a.t?clamp((when-a.t)/(b.t-a.t)):1,p=a.p.clone().lerp(b.p,f),u=age/span;
+        // Wave grows toward the tail so the trail ripples like a ribbon instead of a rigid line.
+        p.x+=Math.cos(age*6-t*4)*u*24;p.y+=Math.sin(age*7-t*5)*u*28;p.z+=Math.sin(age*5-t*3)*u*30;points.push(p);
+      }
+    }
     else for(let n=0;n<=48;n++)points.push(this.sparkPoint(e,Math.max(0,t-(1-n/48)*1.5)));
     setRibbon(i.tail.geometry,points,8,0);i.tail.material.uniforms.opacity.value=fade*.85;
     i.stars.forEach((s,n)=>{const age=(t+n*.117)%1.5,point=points[Math.max(0,Math.min(48,48-Math.floor(age/1.5*48)))];s.position.copy(point);s.position.x+=Math.sin(n*5)*age*20;s.position.y-=age*15;s.position.z+=Math.cos(n)*age*25;s.rotation.set(t+n,t*1.5+n,t*1.1);s.scale.setScalar((1-age/1.5)*(3+n%5)*ease(t/.3));s.material.opacity=fade*clamp((1.5-age)/.5);});
@@ -178,3 +207,5 @@ export class SpatialEffects {
     });
   }
 }
+
+Object.assign(SpatialEffects.prototype,creativeMethods);

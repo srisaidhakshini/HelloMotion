@@ -47,3 +47,22 @@ test('brief tracking gaps preserve a flower sequence, other poses cancel it',()=
  cancelled.update(pose(['Victory']),400);cancelled.update(pose(['Open_Palm']),500);
  assert.equal(cancelled.update(pose(['Open_Palm']),700),null);
 });
+
+test('creative reactions use distinct, order-independent two-hand combinations',()=>{
+ for(const [names,id]of [[['Closed_Fist','Closed_Fist'],'portal'],[['Open_Palm','Victory'],'jellyfish'],[['Open_Palm','Thumb_Up'],'snowglobe']]){
+  assert.equal(reactionFor(pose(names)),id);assert.equal(reactionFor(pose([...names].reverse())),id);
+ }
+ assert.equal(reactionFor(pose(['ILoveYou'])),'phoenix');
+ assert.equal(reactionFor(pose(['Open_Palm','Open_Palm'])),'butterflies');
+ assert.equal(reactionFor(pose(['Victory'])),'balloons');assert.equal(reactionFor(pose(['Thumb_Up'])),'thumbs');
+});
+test('creative gestures require confident hands and keep hold/release/cooldown rules',()=>{
+ const uncertain=pose(['ILoveYou']);uncertain.gestures[0][0].score=.54;assert.equal(reactionFor(uncertain),null);
+ const missing=pose(['Closed_Fist','None']);assert.equal(reactionFor(missing),null);
+ const gate=new GestureGate();let fired=[];
+ for(let t=0;t<2000;t+=100){const name=gate.update('phoenix',t);if(name)fired.push(name);}
+ assert.deepEqual(fired,['phoenix']);
+ for(let t=2000;t<=2500;t+=100)gate.update(null,t);
+ for(let t=2600;t<5000;t+=100){const name=gate.update('portal',t);if(name)fired.push(name);}
+ assert.deepEqual(fired,['phoenix','portal']);
+});
