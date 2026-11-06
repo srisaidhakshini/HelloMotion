@@ -6,7 +6,7 @@
   "license": "MIT",
   "main": "app/main.cjs",
   "scripts": {
-    "start": "node init && electron .",
+    "start": "electron .",
     "test": "node --test test/gestures.test.mjs test/frame-server.test.cjs test/effects.test.mjs test/new-gestures.test.mjs",
     "dist": "electron-builder --win nsis",
     "camera:build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-camera.ps1",
